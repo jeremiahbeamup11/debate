@@ -8,13 +8,16 @@ import { POWERED_BY, PRODUCT_NAME } from "@/config/branding";
 import { useCountdown } from "@/lib/countdown";
 import { useRoom } from "@/lib/room";
 import { gameWinner, tallyRounds } from "@/lib/scoring";
+import { FactCheckCard } from "@/components/FactCheckCard";
 
 const TURN_CHAR_CAP = 500;
+const CLAIM_CHAR_CAP = 200;
+const CHECKS_PER_ROUND = 3;
 const noopSubscribe = () => () => {};
 
 export default function PlayPage() {
   const { roomId } = useParams<{ roomId: string }>();
-  const { room, players, turns, votes, error } = useRoom(roomId);
+  const { room, players, turns, votes, checks, error } = useRoom(roomId);
   const playerId = useSyncExternalStore(
     noopSubscribe,
     () => window.sessionStorage.getItem("player_id"),
@@ -24,6 +27,9 @@ export default function PlayPage() {
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [votedRound, setVotedRound] = useState(0);
+  const [claimDraft, setClaimDraft] = useState("");
+  const [checkOpen, setCheckOpen] = useState(false);
+  const [checkError, setCheckError] = useState<string | null>(null);
   const seconds = useCountdown(room?.phase_deadline ?? null);
 
   const me = players.find((p) => p.id === playerId);
@@ -51,6 +57,7 @@ export default function PlayPage() {
     setActionError(null);
     try {
       await apiPost(`/rooms/${roomId}/votes`, { vote });
+      track("vote_cast", { room_id: roomId });
       setVotedRound(room.current_round);
     } catch (e) {
       setActionError(e instanceof Error ? e.message : "Could not vote");
@@ -59,9 +66,34 @@ export default function PlayPage() {
     }
   }
 
+  async function submitCheck() {
+    setBusy(true);
+    setCheckError(null);
+    try {
+      await apiPost(`/rooms/${roomId}/checks`, { claim: claimDraft.trim() });
+      track("check_requested", { room_id: roomId });
+      setClaimDraft("");
+      setCheckOpen(false);
+    } catch (e) {
+      setCheckError(e instanceof Error ? e.message : "Could not request check");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const nameOf = (side: "pro" | "con") =>
     players.find((p) => p.role === (side === "pro" ? "debater_pro" : "debater_con"))
       ?.display_name ?? "?";
+  const judgeNameOf = (pid: string) =>
+    players.find((p) => p.id === pid)?.display_name ?? "A judge";
+
+  const currentRound = room?.current_round ?? 0;
+  const roundChecks = checks.filter((c) => c.round_number === currentRound);
+  const myRoundChecks = roundChecks.filter((c) => c.judge_player_id === playerId);
+  const remaining = Math.max(0, CHECKS_PER_ROUND - roundChecks.length);
+  const iAlreadyChecked = myRoundChecks.length > 0;
+  const isJudge = me?.role === "judge";
+  const roundLive = room?.status === "debating" || room?.status === "voting";
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-6 p-6 text-center">
@@ -135,6 +167,71 @@ export default function PlayPage() {
           Watch the main screen — you vote when the round ends.
         </p>
       )}
+
+      {/* Judge fact-check affordance — available all round (debating + voting) */}
+      {isJudge && roundLive && (
+        <div className="flex w-full max-w-sm flex-col gap-2 rounded-2xl border border-emerald-500/30 p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-bold text-emerald-400">TruthCore fact-check</span>
+            <span className="text-xs text-zinc-500">{remaining} left this round</span>
+          </div>
+
+          {iAlreadyChecked ? (
+            myRoundChecks.map((c) => (
+              <FactCheckCard
+                key={c.id}
+                check={c}
+                judgeName={judgeNameOf(c.judge_player_id)}
+                size="small"
+              />
+            ))
+          ) : remaining === 0 ? (
+            <p className="text-sm text-zinc-500">No fact-checks left this round.</p>
+          ) : checkOpen ? (
+            <>
+              <textarea
+                value={claimDraft}
+                onChange={(e) => setClaimDraft(e.target.value.slice(0, CLAIM_CHAR_CAP))}
+                rows={3}
+                placeholder="Type the exact claim to check…"
+                className="rounded-xl bg-zinc-800 p-3 text-sm placeholder:text-zinc-600"
+              />
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-zinc-500">
+                  {claimDraft.length}/{CLAIM_CHAR_CAP}
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setCheckOpen(false);
+                      setCheckError(null);
+                    }}
+                    className="rounded-lg px-3 py-2 text-sm text-zinc-400"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => void submitCheck()}
+                    disabled={busy || claimDraft.trim().length === 0}
+                    className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-bold text-zinc-950 hover:bg-emerald-400 disabled:opacity-40"
+                  >
+                    Check it
+                  </button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <button
+              onClick={() => setCheckOpen(true)}
+              className="rounded-xl bg-zinc-800 px-4 py-3 text-sm font-bold hover:bg-zinc-700"
+            >
+              🔍 Fact-check a claim
+            </button>
+          )}
+          {checkError && <p className="text-sm text-red-400">{checkError}</p>}
+        </div>
+      )}
+
       {room?.status === "voting" && me?.role === "judge" && (
         <div className="flex w-full max-w-sm flex-col gap-3">
           {votedRound === room.current_round ? (

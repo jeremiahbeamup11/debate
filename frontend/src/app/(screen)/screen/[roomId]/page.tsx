@@ -8,6 +8,7 @@ import { POWERED_BY, PRODUCT_NAME, TRUTHCORE_URL } from "@/config/branding";
 import { useCountdown } from "@/lib/countdown";
 import { useRoom, type Player, type Turn } from "@/lib/room";
 import { gameWinner, tallyRounds, type RoundResult } from "@/lib/scoring";
+import { FactCheckCard } from "@/components/FactCheckCard";
 
 const MIN_PLAYERS = 3;
 const TOTAL_ROUNDS = 3;
@@ -36,12 +37,13 @@ function RoundVotes({ result }: { result: RoundResult }) {
 
 export default function ScreenPage() {
   const { roomId } = useParams<{ roomId: string }>();
-  const { room, players, turns, votes, error } = useRoom(roomId);
+  const { room, players, turns, votes, checks, error } = useRoom(roomId);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const seconds = useCountdown(room?.phase_deadline ?? null);
   const advancing = useRef(false);
   const completedTracked = useRef(false);
+  const shownCards = useRef<Set<string>>(new Set());
 
   // Advance driver: when the server-set deadline has clearly passed, poke the
   // backend. The server re-checks its own clock, so this can never rush a phase.
@@ -67,6 +69,16 @@ export default function ScreenPage() {
     }
   }, [room?.status, roomId]);
 
+  // card_shown fires once per card when its verdict first lands on the screen.
+  useEffect(() => {
+    for (const c of checks) {
+      if (c.status === "done" && !shownCards.current.has(c.id)) {
+        shownCards.current.add(c.id);
+        track("card_shown", { verdict: c.verdict ?? "", check_id: c.id });
+      }
+    }
+  }, [checks]);
+
   async function act(path: string, eventName?: "game_started") {
     setBusy(true);
     setActionError(null);
@@ -83,6 +95,8 @@ export default function ScreenPage() {
   const nameOf = (side: "pro" | "con") =>
     players.find((p) => p.role === (side === "pro" ? "debater_pro" : "debater_con"))
       ?.display_name ?? "?";
+  const judgeNameOf = (playerId: string) =>
+    players.find((p) => p.id === playerId)?.display_name ?? "A judge";
   const judges = players.filter((p: Player) => p.role === "judge");
   const results = tallyRounds(votes, room?.status === "complete" ? TOTAL_ROUNDS : (room?.current_round ?? 1) - 1);
   const canReroll =
@@ -164,6 +178,15 @@ export default function ScreenPage() {
                   .map((t) => (
                     <TurnBubble key={t.id} turn={t} name={nameOf(t.side)} />
                   ))}
+                {checks
+                  .filter((c) => c.round_number === round)
+                  .map((c) => (
+                    <FactCheckCard
+                      key={c.id}
+                      check={c}
+                      judgeName={judgeNameOf(c.judge_player_id)}
+                    />
+                  ))}
                 {results[round - 1] && <RoundVotes result={results[round - 1]} />}
               </div>
             ))}
@@ -202,11 +225,25 @@ export default function ScreenPage() {
               <RoundVotes key={r.round} result={r} />
             ))}
           </div>
-          <div className="flex max-w-3xl flex-col gap-3">
+          <div className="flex w-full max-w-3xl flex-col gap-3">
             {turns.map((t) => (
               <TurnBubble key={t.id} turn={t} name={nameOf(t.side)} />
             ))}
           </div>
+          {checks.length > 0 && (
+            <div className="flex w-full max-w-3xl flex-col gap-3">
+              <p className="text-sm font-bold tracking-widest text-zinc-500">
+                TRUTHCORE FACT-CHECKS
+              </p>
+              {checks.map((c) => (
+                <FactCheckCard
+                  key={c.id}
+                  check={c}
+                  judgeName={judgeNameOf(c.judge_player_id)}
+                />
+              ))}
+            </div>
+          )}
         </section>
       )}
     </main>

@@ -34,6 +34,18 @@ export interface Vote {
   vote: "pro" | "con";
 }
 
+// TruthCore fact-check card. Pending until the Perplexity call returns.
+export interface Check {
+  id: string;
+  round_number: number;
+  judge_player_id: string;
+  claim: string;
+  status: "pending" | "done" | "failed";
+  verdict: "True" | "False" | "Misleading" | "Unverifiable" | null;
+  explanation: string | null;
+  source_url: string | null;
+}
+
 /**
  * Live room state: reads via anon key under RLS (members only), refreshed by
  * a private-per-room realtime subscription. All writes go through the backend.
@@ -43,18 +55,20 @@ export function useRoom(roomId: string | null): {
   players: Player[];
   turns: Turn[];
   votes: Vote[];
+  checks: Check[];
   error: string | null;
 } {
   const [room, setRoom] = useState<Room | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
   const [turns, setTurns] = useState<Turn[]>([]);
   const [votes, setVotes] = useState<Vote[]>([]);
+  const [checks, setChecks] = useState<Check[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     if (!roomId) return;
     const supabase = getSupabase();
-    const [roomRes, playersRes, turnsRes, votesRes] = await Promise.all([
+    const [roomRes, playersRes, turnsRes, votesRes, checksRes] = await Promise.all([
       supabase
         .from("rooms")
         .select("id,code,status,topic_text,current_round,current_turn,phase_deadline,reroll_used")
@@ -75,8 +89,19 @@ export function useRoom(roomId: string | null): {
         .select("id,round_number,vote")
         .eq("room_id", roomId)
         .order("created_at"),
+      supabase
+        .from("checks")
+        .select("id,round_number,judge_player_id,claim,status,verdict,explanation,source_url")
+        .eq("room_id", roomId)
+        .order("created_at"),
     ]);
-    if (roomRes.error || playersRes.error || turnsRes.error || votesRes.error) {
+    if (
+      roomRes.error ||
+      playersRes.error ||
+      turnsRes.error ||
+      votesRes.error ||
+      checksRes.error
+    ) {
       setError("Could not load the room");
       return;
     }
@@ -84,6 +109,7 @@ export function useRoom(roomId: string | null): {
     setPlayers(playersRes.data as Player[]);
     setTurns(turnsRes.data as Turn[]);
     setVotes(votesRes.data as Vote[]);
+    setChecks(checksRes.data as Check[]);
   }, [roomId]);
 
   useEffect(() => {
@@ -107,6 +133,7 @@ export function useRoom(roomId: string | null): {
         ["players", `room_id=eq.${roomId}`],
         ["turns", `room_id=eq.${roomId}`],
         ["votes", `room_id=eq.${roomId}`],
+        ["checks", `room_id=eq.${roomId}`],
       ] as const) {
         channel = channel.on(
           "postgres_changes",
@@ -131,5 +158,5 @@ export function useRoom(roomId: string | null): {
     };
   }, [roomId, refresh]);
 
-  return { room, players, turns, votes, error };
+  return { room, players, turns, votes, checks, error };
 }

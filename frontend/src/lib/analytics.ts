@@ -9,8 +9,10 @@ type EventName =
   | "player_joined"
   | "game_started"
   | "turn_submitted"
+  | "check_requested"
   | "card_shown"
   | "card_clicked"
+  | "vote_cast"
   | "game_completed"
   | "recap_viewed"
   | "recap_shared_click";
