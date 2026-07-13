@@ -4,8 +4,7 @@
 M2 complete, awaiting review. Full debate loop live end-to-end: turn submission with server-enforced order/caps/timers, judge voting with hidden-then-reveal, 3-round flow to a winner screen. Stack: FastAPI backend (localhost:8000), Next.js frontend (localhost:3001), hosted Supabase project `debate-night` (ref `asltlpcwarasoinjjngd`, org "Mays OS", us-east-1) with migrations 0001+0002 applied.
 
 ## Current milestone
-M2 — Debate loop: **DONE, pending review. Do not start M3 without explicit go.**
-M1 reviewed and approved 2026-07-13.
+M3 — TruthCore cards (in progress). M2 **reviewed and approved 2026-07-13** (human QA: full game with real players, smooth throughout). M1 approved 2026-07-13.
 
 M2 Done condition demonstrated (2026-07-13): full game start-to-finish with 4 tabs (Main Screen + Alice/Bob/Carol). Room NJFH, topic "Lightning never strikes the same place twice" (server-drawn), Bob PRO vs Alice CON, Carol judge. Round 1 both turns typed → Carol voted CON → reveal "PRO 0 — 1 CON"; Round 2 both turns → vote PRO → reveal; Round 3 exercised the timeout paths live: CON turn expired → advance driver skipped it server-side, vote window expired unvoted → round closed as tie → game complete. Winner screen shows "It's a tie!", round-by-round votes, full transcript; all 4 tabs converged. Topic re-roll (once per game) also demonstrated live in an earlier run.
 
