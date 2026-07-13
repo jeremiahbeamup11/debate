@@ -10,7 +10,14 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.auth import get_current_user_id
 from app.db import get_db
-from app.game import MAX_PLAYERS, MIN_PLAYERS, assign_roles, generate_room_code
+from app.game import (
+    MAX_PLAYERS,
+    MIN_PLAYERS,
+    assign_roles,
+    generate_room_code,
+    initial_debate_state,
+    utcnow,
+)
 from app.limits import limiter
 from app.words import contains_blocked_word
 
@@ -148,8 +155,7 @@ def start_game(
     roles = assign_roles(player_ids)
     for pid, role in roles.items():
         db.table("players").update({"role": role}).eq("id", pid).execute()
-    # Status flips last so clients that react to "active" always see roles already set.
-    db.table("rooms").update({"status": "active", "topic_text": topic_text}).eq(
-        "id", str(room_id)
-    ).execute()
-    return {"status": "active", "topic": topic_text}
+    # Status flips last so clients that react to the game starting see roles already set.
+    new_state = initial_debate_state(utcnow()) | {"topic_text": topic_text}
+    db.table("rooms").update(new_state).eq("id", str(room_id)).eq("status", "lobby").execute()
+    return {"status": "debating", "topic": topic_text}
