@@ -1,0 +1,21 @@
+# Env files — never commit secrets (SECURITY.md §1)
+.env
+.env.*
+!.env.example
+
+# Node / Next.js
+node_modules/
+frontend/.next/
+frontend/out/
+*.tsbuildinfo
+frontend/next-env.d.ts
+
+# Python
+__pycache__/
+*.pyc
+backend/.venv/
+.pytest_cache/
+.ruff_cache/
+
+# OS / editor
+.DS_Store
