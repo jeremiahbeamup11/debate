@@ -117,8 +117,16 @@ export function useRoom(roomId: string | null): {
       channel.subscribe();
     })();
 
+    // Realtime can drop silently (sleepy phones, flaky wifi); a slow poll and
+    // focus refetch keep every screen converging on the server state.
+    const poll = setInterval(() => void refresh(), 10_000);
+    const onFocus = () => void refresh();
+    window.addEventListener("focus", onFocus);
+
     return () => {
       cancelled = true;
+      clearInterval(poll);
+      window.removeEventListener("focus", onFocus);
       if (channel) void getSupabase().removeChannel(channel);
     };
   }, [roomId, refresh]);
