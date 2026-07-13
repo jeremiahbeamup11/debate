@@ -225,6 +225,23 @@ export default function ScreenPage() {
               <RoundVotes key={r.round} result={r} />
             ))}
           </div>
+          <div className="flex flex-wrap items-center justify-center gap-4">
+            <button
+              onClick={() => void act(`/rooms/${roomId}/replay`, "game_started")}
+              disabled={busy}
+              className="rounded-xl bg-emerald-500 px-6 py-3 font-bold text-zinc-950 hover:bg-emerald-400 disabled:opacity-40"
+            >
+              Play again
+            </button>
+            <a
+              href={`/recap/${roomId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-xl border border-zinc-600 px-6 py-3 font-bold text-zinc-200 hover:bg-zinc-800"
+            >
+              View recap →
+            </a>
+          </div>
           <div className="flex w-full max-w-3xl flex-col gap-3">
             {turns.map((t) => (
               <TurnBubble key={t.id} turn={t} name={nameOf(t.side)} />

@@ -271,6 +271,14 @@ export default function PlayPage() {
             })()}
           </p>
           <p className="text-zinc-400">Full recap on the main screen.</p>
+          <a
+            href={`/recap/${roomId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 rounded-xl border border-emerald-500 px-6 py-3 font-bold text-emerald-400 hover:bg-emerald-500 hover:text-zinc-950"
+          >
+            View recap →
+          </a>
         </div>
       )}
 
