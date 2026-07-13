@@ -147,6 +147,17 @@ def start_game(
             status_code=409, detail=f"Need at least {MIN_PLAYERS} players to start"
         )
 
+    topic_text = _begin_game(db, str(room_id), player_ids, from_status="lobby")
+    return {"status": "debating", "topic": topic_text}
+
+
+def _begin_game(db, room_id: str, player_ids: list[str], from_status: str) -> str:
+    """Draw a topic, reshuffle roles, and flip the room into a fresh round 1.
+
+    Roles are written before the status flip so clients reacting to the game
+    starting already see them. The status compare-and-swap guards against a
+    double-start / double-replay race.
+    """
     topic = db.rpc("pick_random_topic").execute()
     if not topic.data:
         raise HTTPException(status_code=503, detail="No topics available")
@@ -155,7 +166,43 @@ def start_game(
     roles = assign_roles(player_ids)
     for pid, role in roles.items():
         db.table("players").update({"role": role}).eq("id", pid).execute()
-    # Status flips last so clients that react to the game starting see roles already set.
-    new_state = initial_debate_state(utcnow()) | {"topic_text": topic_text}
-    db.table("rooms").update(new_state).eq("id", str(room_id)).eq("status", "lobby").execute()
+    new_state = initial_debate_state(utcnow()) | {
+        "topic_text": topic_text,
+        "reroll_used": False,
+    }
+    db.table("rooms").update(new_state).eq("id", room_id).eq("status", from_status).execute()
+    return topic_text
+
+
+@router.post("/rooms/{room_id}/replay")
+@limiter.limit("30/hour")
+def replay_game(
+    request: Request,
+    room_id: UUID,
+    user_id: str = Depends(get_current_user_id),
+) -> dict:
+    """Host-only "Play again": reshuffle debaters in the SAME room for a fresh
+    game. Clears the prior game's turns/votes/checks (their unique keys would
+    otherwise collide on reused round numbers). The prior recap is overwritten —
+    a permanent per-game archive would need a separate games table (deferred)."""
+    db = get_db()
+    rooms = (
+        db.table("rooms").select("id,status,host_user_id").eq("id", str(room_id)).execute()
+    )
+    if not rooms.data:
+        raise HTTPException(status_code=404, detail="Room not found")
+    room = rooms.data[0]
+    if room["host_user_id"] != user_id:
+        raise HTTPException(status_code=403, detail="Only the host can start a new game")
+    if room["status"] != "complete":
+        raise HTTPException(status_code=409, detail="Finish the current game first")
+
+    players = db.table("players").select("id").eq("room_id", str(room_id)).execute()
+    player_ids = [p["id"] for p in players.data]
+    if len(player_ids) < MIN_PLAYERS:
+        raise HTTPException(status_code=409, detail=f"Need at least {MIN_PLAYERS} players")
+
+    for table in ("checks", "votes", "turns"):
+        db.table(table).delete().eq("room_id", str(room_id)).execute()
+    topic_text = _begin_game(db, str(room_id), player_ids, from_status="complete")
     return {"status": "debating", "topic": topic_text}
