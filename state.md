@@ -4,7 +4,7 @@
 M1 complete, awaiting review. Full stack scaffolded and live-demonstrated: FastAPI backend (localhost:8000), Next.js frontend (localhost:3001), hosted Supabase project `debate-night` (ref `asltlpcwarasoinjjngd`, org "Mays OS", us-east-1) with the initial RLS migration applied and anonymous sign-in enabled via `supabase config push`.
 
 ## Current milestone
-M1 — Rooms & realtime skeleton: **DONE, pending review. Do not start M2 without explicit go.**
+M2 — Debate loop (in progress). M1 **reviewed and approved 2026-07-13** (human QA: multi-tab lobby, refresh, wrong codes, start-game edge cases all clean).
 
 M1 Done condition demonstrated (2026-07-13): 4 browser tabs — 1 Main Screen + 3 phones (Alice, Bob, Carol) — created room FJGQ, lobbied live via RLS-scoped Supabase Realtime, host started game, server assigned topic ("Napoleon was unusually short") + debaters + sides; each phone received its role (Bob PRO, Carol CON, Alice judge).
 
