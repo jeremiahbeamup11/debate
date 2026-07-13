@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     supabase_url: str
     supabase_service_role_key: str
     frontend_origin: str
+    perplexity_api_key: str
+
+    # Daily global LLM-call ceiling; breaker trips above this (SECURITY.md §3).
+    daily_llm_call_ceiling: int = 200
 
 
 def load_settings() -> Settings:

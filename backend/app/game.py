@@ -22,6 +22,12 @@ TOTAL_ROUNDS = 3
 TURN_SECONDS = 60
 VOTE_SECONDS = 20
 TURN_CHAR_CAP = 500
+
+# Judge-triggered fact-checks (PROJECT.md "Fact-checking: on-demand"):
+# a game mechanic as much as a cost control.
+CHECKS_PER_ROUND = 3  # across all judges combined
+CHECKS_PER_JUDGE_PER_ROUND = 1
+CLAIM_CHAR_CAP = 200
 # Submission grace after the deadline (network latency); /advance gets none.
 GRACE = timedelta(seconds=2)
 
@@ -119,6 +125,27 @@ def state_after_advance(room: Mapping[str, Any], now: datetime) -> dict[str, Any
     if room["status"] == "debating":
         return state_after_turn(room, now)
     return state_after_round_close(room, now)
+
+
+def check_factcheck_allowed(
+    room: Mapping[str, Any],
+    role: str | None,
+    round_checks_total: int,
+    judge_checked_this_round: bool,
+) -> None:
+    """Validate a fact-check request against the server-enforced limits.
+
+    Checks are allowed during both the debating and voting phases of a live
+    round (a check is a decision aid), by judges only.
+    """
+    if role != "judge":
+        raise DomainError(403, "Only judges can request fact-checks")
+    if room["status"] not in ("debating", "voting"):
+        raise DomainError(409, "Fact-checks are only open during a round")
+    if judge_checked_this_round:
+        raise DomainError(409, "You already used your fact-check this round")
+    if round_checks_total >= CHECKS_PER_ROUND:
+        raise DomainError(409, "No fact-checks left this round")
 
 
 def utcnow() -> datetime:

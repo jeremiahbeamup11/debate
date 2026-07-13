@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 
+from app.checks import router as checks_router
 from app.config import settings
 from app.debate import router as debate_router
 from app.limits import limiter
@@ -48,3 +49,4 @@ def healthz() -> dict:
 
 app.include_router(rooms_router)
 app.include_router(debate_router)
+app.include_router(checks_router)
