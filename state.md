@@ -29,7 +29,9 @@ Stack: FastAPI backend (localhost:8000), Next.js frontend (localhost:3001), host
 Nothing marked passed without a live check. Scripts in scratchpad: m4_make_game.py, m4_items_4_6.py, m4_item6_redo.py, m4_item9.py; RLS/anon-write via psycopg + curl.
 
 ## Current milestone
-M5 — Permanent per-game recaps: **built, verified, at Done condition, awaiting review.** M4 approved 2026-07-13 (10/10 §10 checklist accepted). M3/M2/M1 approved 2026-07-13.
+**MVP scope complete — M1–M5 all reviewed and approved 2026-07-13.** Now in a deploy-and-verify pass (not a new milestone): Vercel (root `frontend/`) + Render (root `backend/`), then re-run SECURITY.md §10 items 2, 7, 10 against the DEPLOYED stack.
+
+M5 **reviewed and approved 2026-07-13** (human QA: both recap links render independently after Play again). M4 approved (10/10 §10 checklist). M3/M2/M1 approved.
 
 M3 Done condition — all 4 parts verified (final 2 against the LIVE model 2026-07-13):
 - ✅ "the Great Wall of China is visible from space" → **False** card end-to-end in ~1s, attributed to the requesting judge, on Main Screen. Live sonar returned `{"verdict":"False", ...NASA source...}`.
@@ -48,7 +50,7 @@ M4 review sign-off, then project is at MVP scope end (stop after M4 per PROJECT.
 If changes are requested, likely touch points: PostHog `vote_cast` is defined in the event type but not yet emitted from the judge vote handler (see debt); per-game recap archive would need a `games` table (see debt).
 
 ## Blockers
-- **PERPLEXITY_API_KEY returns 401 Unauthorized (as of late 2026-07-13).** The key in `backend/.env` (`pplx-MhS…`, 53 chars) worked earlier today — M3 Done conditions and §10 item 5 returned real verdicts — but now 401s when tested **directly against `https://api.perplexity.ai`** (`curl` outside the app; not a shell-env override, not a code change). So the key was rotated/expired/revoked or hit a billing/quota limit on Perplexity's side. Effect: live fact-checks fail gracefully — the check endpoint still returns 201 and enforces all limits/idempotency/breaker, the background sonar call 401s, and the card lands as status `failed` ("TruthCore couldn't verify this one"). **Action needed from user:** drop a currently-valid sonar key into `backend/.env` and restart the backend; no code change required (factcheck.py untouched since M3). Does NOT block M5.
+None. (Perplexity quota was topped up 2026-07-13 and live fact-checks confirmed returning real verdicts again — the earlier 401 was `insufficient_quota`, a billing issue, not a bad key. Note for the future: Perplexity signals quota exhaustion with HTTP **401 + `type: insufficient_quota`**, not 402/429 — read the error body, don't infer from the status code.)
 
 ## Assumptions made
 M2:
