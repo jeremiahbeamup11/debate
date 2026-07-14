@@ -1,7 +1,9 @@
 # STATE.md
 
 ## Current position
-M4 built and self-verified; **at the M4 Done condition, awaiting review.** Public recap page live at `/recap/[uuid]`, Play again wired, and all 10 SECURITY.md §10 Definition-of-Done items demonstrated live (evidence below). M1/M2/M3 reviewed and approved 2026-07-13. Stack: FastAPI backend (localhost:8000), Next.js frontend (localhost:3001), hosted Supabase `debate-night` (ref `asltlpcwarasoinjjngd`, org "Mays OS", us-east-1) with migrations 0001–0004 applied. Frontend production build compiles clean; backend pytest 58/58, ruff clean.
+M5 in progress — permanent/immutable per-game recaps (games table; Play again starts a new game instead of clearing rows). M4 **reviewed and approved 2026-07-13** (10/10 §10 checklist with live proof accepted). M1/M2/M3 approved 2026-07-13.
+
+Prior (M4, approved): built and self-verified at Done condition. Public recap page live at `/recap/[uuid]`, Play again wired, and all 10 SECURITY.md §10 Definition-of-Done items demonstrated live (evidence below). M1/M2/M3 reviewed and approved 2026-07-13. Stack: FastAPI backend (localhost:8000), Next.js frontend (localhost:3001), hosted Supabase `debate-night` (ref `asltlpcwarasoinjjngd`, org "Mays OS", us-east-1) with migrations 0001–0004 applied. Frontend production build compiles clean; backend pytest 58/58, ruff clean.
 
 ## SECURITY.md §10 Definition of Done — all 10 demonstrated live 2026-07-13
 1. ✅ Refuses to boot with a missing env var — `env -i … python -c "import app.main"` → `FATAL: missing … Refusing to start`, exit 1 (both all-missing and PERPLEXITY-only-missing).
