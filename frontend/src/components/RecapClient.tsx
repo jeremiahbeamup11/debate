@@ -4,19 +4,19 @@ import { useEffect, useRef, useState } from "react";
 import { track } from "@/lib/analytics";
 
 /** Fires recap_viewed once on mount and renders a copy-link share button. */
-export function RecapClient({ roomId }: { roomId: string }) {
+export function RecapClient({ gameId }: { gameId: string }) {
   const [copied, setCopied] = useState(false);
   const viewed = useRef(false);
 
   useEffect(() => {
     if (!viewed.current) {
       viewed.current = true;
-      track("recap_viewed", { room_id: roomId });
+      track("recap_viewed", { game_id: gameId });
     }
-  }, [roomId]);
+  }, [gameId]);
 
   async function share() {
-    track("recap_shared_click", { room_id: roomId });
+    track("recap_shared_click", { game_id: gameId });
     try {
       await navigator.clipboard.writeText(window.location.href);
       setCopied(true);

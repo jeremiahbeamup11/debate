@@ -92,18 +92,26 @@ def request_check(
 ) -> dict:
     db = get_db()
     rooms = (
-        db.table("rooms")
-        .select("id,status,current_round")
-        .eq("id", str(room_id))
-        .execute()
+        db.table("rooms").select("id,current_game_id").eq("id", str(room_id)).execute()
     )
     if not rooms.data:
         raise HTTPException(status_code=404, detail="Room not found")
     room = rooms.data[0]
+    if not room["current_game_id"]:
+        raise HTTPException(status_code=409, detail="No game in progress")
+    games = (
+        db.table("games")
+        .select("id,status,current_round")
+        .eq("id", room["current_game_id"])
+        .execute()
+    )
+    if not games.data:
+        raise HTTPException(status_code=409, detail="No game in progress")
+    game = games.data[0]
 
     players = (
         db.table("players")
-        .select("id,role")
+        .select("id")
         .eq("room_id", str(room_id))
         .eq("auth_user_id", user_id)
         .execute()
@@ -111,12 +119,20 @@ def request_check(
     if not players.data:
         raise HTTPException(status_code=403, detail="You are not in this room")
     player = players.data[0]
-    round_number = room["current_round"]
+    role_rows = (
+        db.table("game_players")
+        .select("role")
+        .eq("game_id", game["id"])
+        .eq("player_id", player["id"])
+        .execute()
+    )
+    role = role_rows.data[0]["role"] if role_rows.data else None
+    round_number = game["current_round"]
 
     existing = (
         db.table("checks")
         .select("id,judge_player_id")
-        .eq("room_id", room["id"])
+        .eq("game_id", game["id"])
         .eq("round_number", round_number)
         .execute()
     )
@@ -124,7 +140,7 @@ def request_check(
     judge_checked = any(c["judge_player_id"] == player["id"] for c in existing.data)
 
     try:
-        check_factcheck_allowed(room, player["role"], round_total, judge_checked)
+        check_factcheck_allowed(game, role, round_total, judge_checked)
     except DomainError as e:
         raise HTTPException(status_code=e.status_code, detail=e.detail) from None
 
@@ -133,13 +149,14 @@ def request_check(
         logger.warning("daily LLM circuit breaker tripped; refusing check")
         raise HTTPException(status_code=503, detail="TruthCore is at capacity — try later")
 
-    # Insert pending row. The (room, round, judge) unique constraint makes the
+    # Insert pending row. The (game, round, judge) unique constraint makes the
     # per-judge limit race-proof; a retry lands here as 23505.
     try:
         inserted = (
             db.table("checks")
             .insert(
                 {
+                    "game_id": game["id"],
                     "room_id": room["id"],
                     "round_number": round_number,
                     "judge_player_id": player["id"],
@@ -162,7 +179,7 @@ def request_check(
     after = (
         db.table("checks")
         .select("id,created_at")
-        .eq("room_id", room["id"])
+        .eq("game_id", game["id"])
         .eq("round_number", round_number)
         .order("created_at")
         .execute()

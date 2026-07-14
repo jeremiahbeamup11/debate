@@ -4,15 +4,16 @@ import { FactCheckCard } from "@/components/FactCheckCard";
 import { RecapClient } from "@/components/RecapClient";
 import { getServerSupabase } from "@/lib/supabaseServer";
 import { gameWinner, tallyRounds } from "@/lib/scoring";
-import type { Check, Player, Turn, Vote } from "@/lib/room";
+import type { Check, Turn, Vote } from "@/lib/room";
 
 const TOTAL_ROUNDS = 3;
 
 // UUIDs only — never leak query behaviour on arbitrary strings.
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-interface RecapRoom {
+interface RecapGame {
   id: string;
+  room_id: string;
   status: string;
   topic_text: string | null;
 }
@@ -32,39 +33,45 @@ function NotAvailable() {
 export default async function RecapPage({
   params,
 }: {
-  params: Promise<{ roomId: string }>;
+  params: Promise<{ gameId: string }>;
 }) {
-  const { roomId } = await params;
-  if (!UUID_RE.test(roomId)) return <NotAvailable />;
+  const { gameId } = await params;
+  if (!UUID_RE.test(gameId)) return <NotAvailable />;
 
   const supabase = getServerSupabase();
-  // Public-recap RLS only exposes completed rooms, so a live/unknown room
-  // simply returns nothing here.
-  const { data: room } = await supabase
-    .from("rooms")
-    .select("id,status,topic_text")
-    .eq("id", roomId)
-    .maybeSingle<RecapRoom>();
-  if (!room || room.status !== "complete") return <NotAvailable />;
+  // Public-recap RLS only exposes completed games, so a live/unknown game
+  // simply returns nothing here. Each completed game is immutable, so its
+  // recap is permanent regardless of later "Play again" games in the room.
+  const { data: game } = await supabase
+    .from("games")
+    .select("id,room_id,status,topic_text")
+    .eq("id", gameId)
+    .maybeSingle<RecapGame>();
+  if (!game || game.status !== "complete") return <NotAvailable />;
 
-  const [{ data: players }, { data: turns }, { data: votes }, { data: checks }] =
+  const [{ data: gamePlayers }, { data: players }, { data: turns }, { data: votes }, { data: checks }] =
     await Promise.all([
-      supabase.from("players").select("id,display_name,role").eq("room_id", roomId).order("created_at"),
-      supabase.from("turns").select("id,round_number,side,content").eq("room_id", roomId).order("created_at"),
-      supabase.from("votes").select("id,round_number,vote").eq("room_id", roomId).order("created_at"),
-      supabase.from("checks").select("id,round_number,judge_player_id,claim,status,verdict,explanation,source_url").eq("room_id", roomId).order("created_at"),
+      supabase.from("game_players").select("player_id,role").eq("game_id", gameId),
+      supabase.from("players").select("id,display_name").eq("room_id", game.room_id),
+      supabase.from("turns").select("id,round_number,side,content").eq("game_id", gameId).order("created_at"),
+      supabase.from("votes").select("id,round_number,vote").eq("game_id", gameId).order("created_at"),
+      supabase.from("checks").select("id,round_number,judge_player_id,claim,status,verdict,explanation,source_url").eq("game_id", gameId).order("created_at"),
     ]);
 
-  const playerList = (players ?? []) as Player[];
+  const roleRows = (gamePlayers ?? []) as { player_id: string; role: string }[];
+  const nameById = new Map(
+    ((players ?? []) as { id: string; display_name: string }[]).map((p) => [p.id, p.display_name]),
+  );
   const turnList = (turns ?? []) as Turn[];
   const voteList = (votes ?? []) as Vote[];
   const checkList = (checks ?? []) as Check[];
 
-  const nameOf = (side: "pro" | "con") =>
-    playerList.find((p) => p.role === (side === "pro" ? "debater_pro" : "debater_con"))
-      ?.display_name ?? "?";
-  const judgeNameOf = (pid: string) =>
-    playerList.find((p) => p.id === pid)?.display_name ?? "A judge";
+  const nameOf = (side: "pro" | "con") => {
+    const wanted = side === "pro" ? "debater_pro" : "debater_con";
+    const gp = roleRows.find((r) => r.role === wanted);
+    return (gp && nameById.get(gp.player_id)) ?? "?";
+  };
+  const judgeNameOf = (pid: string) => nameById.get(pid) ?? "A judge";
 
   const results = tallyRounds(voteList, TOTAL_ROUNDS);
   const winner = gameWinner(results);
@@ -84,7 +91,7 @@ export default async function RecapPage({
       </header>
 
       <section className="flex flex-col items-center gap-4 text-center">
-        <p className="text-lg text-zinc-400">“{room.topic_text}”</p>
+        <p className="text-lg text-zinc-400">“{game.topic_text}”</p>
         <p className="text-5xl font-black">
           {winner === "tie" ? "It's a tie!" : `${nameOf(winner)} wins!`}
         </p>
@@ -92,7 +99,7 @@ export default async function RecapPage({
           <span className="text-emerald-400">{nameOf("pro")} (PRO)</span> vs{" "}
           <span className="text-rose-400">{nameOf("con")} (CON)</span>
         </p>
-        <RecapClient roomId={roomId} />
+        <RecapClient gameId={gameId} />
       </section>
 
       {Array.from({ length: TOTAL_ROUNDS }, (_, i) => i + 1).map((round) => {

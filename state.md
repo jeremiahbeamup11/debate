@@ -1,9 +1,18 @@
 # STATE.md
 
 ## Current position
-M5 in progress — permanent/immutable per-game recaps (games table; Play again starts a new game instead of clearing rows). M4 **reviewed and approved 2026-07-13** (10/10 §10 checklist with live proof accepted). M1/M2/M3 approved 2026-07-13.
+M5 built and verified; **at the M5 Done condition, awaiting review.** Permanent/immutable per-game recaps via a `games` table (a room hosts many games; Play again starts a NEW game and never clears prior rows). M1–M4 reviewed and approved 2026-07-13. Migrations 0001–0005 applied. backend pytest 58/58, ruff clean; frontend tsc+eslint clean.
 
-Prior (M4, approved): built and self-verified at Done condition. Public recap page live at `/recap/[uuid]`, Play again wired, and all 10 SECURITY.md §10 Definition-of-Done items demonstrated live (evidence below). M1/M2/M3 reviewed and approved 2026-07-13. Stack: FastAPI backend (localhost:8000), Next.js frontend (localhost:3001), hosted Supabase `debate-night` (ref `asltlpcwarasoinjjngd`, org "Mays OS", us-east-1) with migrations 0001–0004 applied. Frontend production build compiles clean; backend pytest 58/58, ruff clean.
+**NEW BLOCKER for live fact-checks (not an M5 blocker): the PERPLEXITY_API_KEY in backend/.env now returns 401 Unauthorized** — see BLOCKERS. The key worked earlier today (M3 + §10 item 5); it has since been rotated/expired/revoked on Perplexity's side. Fact-checks currently degrade to "couldn't verify" cards. M5 does not depend on it.
+
+### M5 Done condition — met and demonstrated (2026-07-13)
+Played game 1, Play again, played game 2 (script m5_two_games.py + browser):
+- Distinct game UUIDs `b3547bcb-…` and `60f9911f-…`; room hosts both.
+- Game 1 rows untouched after Play again: 6 turns (incl. a `<script>alert('game1')</script>` turn) + 1 check preserved; game 2 independent (6 turns, 0 checks).
+- Both recaps render with no auth: `curl` → 200 each; game 1 shows "Lightning…" topic + its card + XSS **escaped/inert** (byte check: 0 literal `<script>alert`, only `&lt;script&gt;`); game 2 shows "Coffee…" topic, its own turns, no XSS, no card. Browser screenshots confirm both.
+- Interactive flow re-verified through the rewritten `useRoom` hook in-browser: create room QTZK → 3 phones join → Start → roles ("Bob PRO vs Carol CON") + topic + timer render → Bob's turn submitted → appears on Main Screen, advances to Carol. Full lobby→game path works on the games model.
+
+Stack: FastAPI backend (localhost:8000), Next.js frontend (localhost:3001), hosted Supabase `debate-night` (ref `asltlpcwarasoinjjngd`, org "Mays OS", us-east-1), migrations 0001–0005 applied. The §10 Definition-of-Done section below was demonstrated at M4 and still holds on the games model.
 
 ## SECURITY.md §10 Definition of Done — all 10 demonstrated live 2026-07-13
 1. ✅ Refuses to boot with a missing env var — `env -i … python -c "import app.main"` → `FATAL: missing … Refusing to start`, exit 1 (both all-missing and PERPLEXITY-only-missing).
@@ -20,7 +29,7 @@ Prior (M4, approved): built and self-verified at Done condition. Public recap pa
 Nothing marked passed without a live check. Scripts in scratchpad: m4_make_game.py, m4_items_4_6.py, m4_item6_redo.py, m4_item9.py; RLS/anon-write via psycopg + curl.
 
 ## Current milestone
-M4 — Recap page + polish + security gate (in progress). M3 **reviewed and approved 2026-07-13** (human QA: live cards render, opinions + injections degrade sanely, limits hold). M2 approved 2026-07-13. M1 approved 2026-07-13.
+M5 — Permanent per-game recaps: **built, verified, at Done condition, awaiting review.** M4 approved 2026-07-13 (10/10 §10 checklist accepted). M3/M2/M1 approved 2026-07-13.
 
 M3 Done condition — all 4 parts verified (final 2 against the LIVE model 2026-07-13):
 - ✅ "the Great Wall of China is visible from space" → **False** card end-to-end in ~1s, attributed to the requesting judge, on Main Screen. Live sonar returned `{"verdict":"False", ...NASA source...}`.
@@ -39,7 +48,7 @@ M4 review sign-off, then project is at MVP scope end (stop after M4 per PROJECT.
 If changes are requested, likely touch points: PostHog `vote_cast` is defined in the event type but not yet emitted from the judge vote handler (see debt); per-game recap archive would need a `games` table (see debt).
 
 ## Blockers
-None. (PERPLEXITY_API_KEY real sonar key confirmed in `backend/.env` 2026-07-13; both live verdicts returned correctly.)
+- **PERPLEXITY_API_KEY returns 401 Unauthorized (as of late 2026-07-13).** The key in `backend/.env` (`pplx-MhS…`, 53 chars) worked earlier today — M3 Done conditions and §10 item 5 returned real verdicts — but now 401s when tested **directly against `https://api.perplexity.ai`** (`curl` outside the app; not a shell-env override, not a code change). So the key was rotated/expired/revoked or hit a billing/quota limit on Perplexity's side. Effect: live fact-checks fail gracefully — the check endpoint still returns 201 and enforces all limits/idempotency/breaker, the background sonar call 401s, and the card lands as status `failed` ("TruthCore couldn't verify this one"). **Action needed from user:** drop a currently-valid sonar key into `backend/.env` and restart the backend; no code change required (factcheck.py untouched since M3). Does NOT block M5.
 
 ## Assumptions made
 M2:
@@ -65,8 +74,9 @@ M1 (carried):
 - slowapi rate-limit state is in-memory — per-instance, resets on restart. Fine for single Render instance MVP.
 - Supabase CLI locally is v2.90.0 (v2.109.1 available).
 - Refetch-everything-on-any-event realtime strategy — simple and correct; optimize only if sluggish.
-- **Play again overwrites the room's recap.** Same-room reshuffle clears the prior game's turns/votes/checks (their unique keys collide on reused round numbers), so a shared recap link reflects only the latest game of that room. A permanent per-game recap archive would need a separate `games` table (deferred — not in MVP scope; PROJECT.md "reshuffles debaters from the same room" is satisfied).
-- Recap page reads `players.auth_user_id` is *possible* for anon on completed rooms (policy is row-level, not column-level), but the page never selects it; the value is an anonymous Supabase user UUID (not PII, can't be used to forge a JWT). Acceptable for MVP; column-level hardening deferred.
+- ~~Play again overwrites the room's recap.~~ **Fixed in M5** — games table; each completed game keeps its own immutable recap; Play again starts a new game.
+- Recap exposes `players.display_name` (and *could* expose `players.auth_user_id`, though the page never selects it) for anyone who played in a completed game — anon Supabase UUIDs, not PII, can't forge a JWT. Acceptable for MVP; column-level hardening deferred.
+- turns/votes/checks carry a denormalized `room_id` (in addition to `game_id`) purely so realtime channels can filter per-room without knowing the game id. Logic/uniqueness key on `game_id`; `room_id` is a filter tag only.
 
 ## Credentials / infra notes (no secret values in this file)
 - `backend/.env` holds SUPABASE_URL + service-role key + a commented copy of the DB password (all gitignored). `frontend/.env.local` holds the anon key. Rotate/reset from the Supabase dashboard if ever exposed.
@@ -76,4 +86,5 @@ M1 (carried):
 - 2026-07-13 — M1 complete: rooms/join/start API with env hard-fail + rate limits, RLS default-deny migration (rooms/players/topics + 40 seeded topics), realtime lobby, role push to phones. Demonstrated with 4 tabs; 9/9 security spot checks passed. **Reviewed & approved 2026-07-13.**
 - 2026-07-13 — M2 complete: debate loop — turns/votes tables (RLS, unique-index idempotency, votes hidden until reveal), pure server state machine (PRO→CON→voting×3, 60s/20s deadlines, member-poked advance), turn composer + judge voting + winner screen, topic re-roll, realtime with poll fallback. Full game demonstrated across 4 tabs incl. timeout/skip paths; pytest 34/34. **Reviewed & approved 2026-07-13.**
 - 2026-07-13 — M3 complete (judge-triggered fact-checks): migration 0003 (checks + llm_calls, RLS member-read), injection-hardened Perplexity pipeline (§2), check endpoint with 3 server-enforced limits + circuit breaker + background call, judge phone affordance + TruthCore cards on Main Screen. pytest 58/58, ruff/tsc/eslint clean. Live-verified: 3 limits (8/8), breaker (3/3), pending→failed card + attribution in browser; both live-model Done conditions confirmed (Great Wall→False w/ NASA source; injection→False, not swayed). **Reviewed & approved 2026-07-13.**
+- 2026-07-13 — M5 built (permanent per-game recaps): migration 0005 restructures to a `games` model — a room hosts many games; games own per-game state (status/topic/round/turn/deadline/reroll); `game_players` holds per-game roles; turns/votes/checks re-keyed to `game_id` (with denormalized `room_id` for realtime); public-read RLS on completed games + their children + participant display names; votes hidden until reveal via `is_game_round_revealed`. Backend endpoints resolve the room's `current_game_id`; Play again (`/replay`) creates a new game and never deletes prior rows. Recap route → `/recap/[gameId]`; `useRoom` hook rewritten to resolve room→current game→merged view. pytest 58/58, ruff/tsc/eslint clean. **Done condition demonstrated:** two games in one room → two distinct permanent recaps rendering independently with no auth; interactive lobby→game flow re-verified in-browser. **Awaiting review.** (Perplexity key 401 surfaced during verification — external, logged under BLOCKERS.)
 - 2026-07-13 — M4 built (recap + polish + security gate): migration 0004 (public-read RLS for completed rooms + children, anon+authenticated, no write policies); Server-Component recap at `/recap/[uuid]` reading via anon key (works with no auth), all user text plain-text; RecapClient island (recap_viewed + copy-link share); Play again (host-only same-room reshuffle, `/rooms/{id}/replay`); recap links on both winner screens. All 11 PostHog events wired. Frontend prod build clean, pytest 58/58, ruff clean. **All 10 SECURITY.md §10 items demonstrated live** (see section up top). Done condition met: recap works in a no-auth/incognito context (curl 200 + browser render) and the §10 checklist passes. **Awaiting review.**

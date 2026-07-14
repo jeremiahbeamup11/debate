@@ -233,14 +233,16 @@ export default function ScreenPage() {
             >
               Play again
             </button>
-            <a
-              href={`/recap/${roomId}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-xl border border-zinc-600 px-6 py-3 font-bold text-zinc-200 hover:bg-zinc-800"
-            >
-              View recap →
-            </a>
+            {room.current_game_id && (
+              <a
+                href={`/recap/${room.current_game_id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-xl border border-zinc-600 px-6 py-3 font-bold text-zinc-200 hover:bg-zinc-800"
+              >
+                View recap →
+              </a>
+            )}
           </div>
           <div className="flex w-full max-w-3xl flex-col gap-3">
             {turns.map((t) => (
