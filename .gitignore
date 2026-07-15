@@ -19,3 +19,4 @@ backend/.venv/
 
 # OS / editor
 .DS_Store
+.vercel
