@@ -6,6 +6,7 @@ import json
 import pytest
 from pydantic_settings import SettingsConfigDict
 
+from app import config
 from app.config import ConfigError, Settings, load_settings, supabase_project_ref, validate_settings
 
 REQUIRED = ("SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "FRONTEND_ORIGIN", "PERPLEXITY_API_KEY")
@@ -45,8 +46,37 @@ def test_boot_succeeds_with_valid_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", fake_key())
     monkeypatch.setenv("FRONTEND_ORIGIN", "https://app.example.com")
     monkeypatch.setenv("PERPLEXITY_API_KEY", "pplx-test")
+    # Stub the live credential probe — unit tests must not hit the network.
+    monkeypatch.setattr(config, "verify_supabase_credentials", lambda s: None)
     settings = load_settings()
     assert settings.supabase_url == "https://example.supabase.co"
+
+
+# --- live credential probe (catches a right-shaped but invalid key) ----------
+
+
+class _Resp:
+    def __init__(self, status_code: int) -> None:
+        self.status_code = status_code
+
+
+def test_live_probe_fatal_when_key_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(config.httpx, "get", lambda *a, **k: _Resp(401))
+    with pytest.raises(ConfigError, match="rejected by Supabase"):
+        config.verify_supabase_credentials(make())
+
+
+def test_live_probe_passes_when_key_accepted(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(config.httpx, "get", lambda *a, **k: _Resp(200))
+    config.verify_supabase_credentials(make())
+
+
+def test_live_probe_tolerates_network_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    def boom(*a: object, **k: object) -> None:
+        raise config.httpx.ConnectError("no route")
+
+    monkeypatch.setattr(config.httpx, "get", boom)
+    config.verify_supabase_credentials(make())  # must not raise — transient blip
 
 
 # --- URL shape --------------------------------------------------------------

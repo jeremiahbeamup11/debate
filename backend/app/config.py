@@ -13,6 +13,7 @@ import json
 import re
 import sys
 
+import httpx
 from pydantic import ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -24,7 +25,11 @@ class ConfigError(Exception):
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    # str_strip_whitespace: a stray space/newline from a dashboard paste would
+    # otherwise travel into an auth header and produce an opaque 401.
+    model_config = SettingsConfigDict(
+        env_file=".env", extra="ignore", str_strip_whitespace=True
+    )
 
     supabase_url: str
     supabase_service_role_key: str
@@ -99,8 +104,53 @@ def validate_settings(s: Settings) -> None:
             "sb_secret_ key."
         )
 
+    if any(c.isspace() for c in s.supabase_service_role_key):
+        raise ConfigError("SUPABASE_SERVICE_ROLE_KEY contains whitespace — check the paste.")
+
     if not s.perplexity_api_key.startswith("pplx-"):
         raise ConfigError("PERPLEXITY_API_KEY does not look like a sonar key (expected 'pplx-' prefix).")
+
+
+def verify_supabase_credentials(s: Settings) -> None:
+    """Prove the service_role key is actually accepted by Supabase.
+
+    Shape checks can't distinguish a valid key from one that is truncated,
+    rotated, or re-signed — those decode fine and then 401 on every request.
+    A 401/403 here is fatal: the deploy is misconfigured and must not serve.
+    Network failures are NOT fatal; we don't want a transient Supabase blip to
+    prevent boot.
+    """
+    try:
+        resp = httpx.get(
+            f"{s.supabase_url}/rest/v1/topics",
+            params={"select": "id", "limit": 1},
+            headers={
+                "apikey": s.supabase_service_role_key,
+                "Authorization": f"Bearer {s.supabase_service_role_key}",
+            },
+            timeout=15,
+        )
+    except httpx.HTTPError as e:
+        print(
+            f"WARNING: could not reach Supabase to verify credentials ({type(e).__name__}). "
+            "Continuing; requests may fail.",
+            file=sys.stderr,
+        )
+        return
+    if resp.status_code in (401, 403):
+        raise ConfigError(
+            f"SUPABASE_SERVICE_ROLE_KEY was rejected by Supabase ({resp.status_code}) for "
+            f"project {supabase_project_ref(s.supabase_url)!r}. The key has the right shape, "
+            "so it is likely truncated, rotated, or re-signed — copy it again from "
+            "Settings > API Keys > service_role."
+        )
+    if resp.status_code != 200:
+        print(
+            f"WARNING: Supabase credential check returned {resp.status_code}.",
+            file=sys.stderr,
+        )
+        return
+    print("config OK: service_role key verified against Supabase", file=sys.stderr)
 
 
 def load_settings() -> Settings:
@@ -116,10 +166,14 @@ def load_settings() -> Settings:
         raise SystemExit(1) from e
     try:
         validate_settings(s)
+        print(
+            f"config OK: supabase project={supabase_project_ref(s.supabase_url)}",
+            file=sys.stderr,
+        )
+        verify_supabase_credentials(s)
     except ConfigError as e:
         print(f"FATAL: {e} Refusing to start (SECURITY.md §1).", file=sys.stderr)
         raise SystemExit(1) from e
-    print(f"config OK: supabase project={supabase_project_ref(s.supabase_url)}", file=sys.stderr)
     return s
 
 
