@@ -29,7 +29,23 @@ Stack: FastAPI backend (localhost:8000), Next.js frontend (localhost:3001), host
 Nothing marked passed without a live check. Scripts in scratchpad: m4_make_game.py, m4_items_4_6.py, m4_item6_redo.py, m4_item9.py; RLS/anon-write via psycopg + curl.
 
 ## Current milestone
-**MVP scope complete — M1–M5 all reviewed and approved 2026-07-13.** Now in a deploy-and-verify pass (not a new milestone): Vercel (root `frontend/`) + Render (root `backend/`), then re-run SECURITY.md §10 items 2, 7, 10 against the DEPLOYED stack.
+**MVP DEPLOYED TO PRODUCTION AND VERIFIED — 2026-07-13.** M1–M5 all reviewed and approved.
+
+### Production stack
+- Frontend (Vercel): **https://debate-livid.vercel.app** — project `debate`, root `frontend/`, framework preset Next.js. Env points at the Truthcore AI Supabase project.
+- Backend (Render): **https://debate-night.onrender.com** — root `backend/`, start `uvicorn app.main:app --host 0.0.0.0 --port $PORT`. Free tier (idle spin-down → first request after quiet ~30-60s).
+- Database (Supabase): **`gwgqdwbzcoicqhurjese`** ("Debate Night" under the **Truthcore AI** org). Migrations 0001–0005 applied via SQL Editor (combined script); anonymous sign-in enabled; 40 topics seeded.
+- CORS: `FRONTEND_ORIGIN=https://debate-livid.vercel.app` (exact-match; Vercel previews are intentionally CORS-blocked).
+
+### §10 re-verified against PRODUCTION (2026-07-13)
+- Item 2 (bundle zero secrets): the only Supabase JWT in the deployed bundle is `ref=gwgqdwbzcoicqhurjese, role=anon`; no service_role JWT, no `pplx-` key, no `sb_secret_`/`SERVICE_ROLE` strings.
+- Item 7 (429): create-room loop returns 429 once the 5/hour IP bucket is exceeded (tripped mid-loop because prior verification calls from the same IP counted — the limit is stateful, which is correct).
+- Item 10 (CORS): real Vercel origin → ACAO echoed; `evil.example.com` → no ACAO. (CORS also passed at M4.)
+- End-to-end smoke: anon sign-in → create room via deployed Render → **201** (room MCLX); UI renders; rate-limit surfaces as friendly "Too many requests".
+
+### Cleanup owed (post-launch, not blocking)
+- **Delete the unused `debate-night` project under the Mays OS org** (`asltlpcwarasoinjjngd`) — it holds the M1–M5 dev/test data and duplicate name; production now lives entirely in `gwgqdwbzcoicqhurjese`. Two same-named projects caused the multi-round deploy confusion; removing it prevents a repeat.
+- Local `backend/.env` still points at `asltlpcwarasoinjjngd` (dev DB) — fine for local dev; do not confuse with prod.
 
 M5 **reviewed and approved 2026-07-13** (human QA: both recap links render independently after Play again). M4 approved (10/10 §10 checklist). M3/M2/M1 approved.
 
