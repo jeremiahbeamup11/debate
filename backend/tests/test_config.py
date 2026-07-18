@@ -138,6 +138,20 @@ def test_frontend_origin_without_scheme_rejected() -> None:
         validate_settings(make(frontend_origin="app.example.com"))
 
 
+def test_frontend_origin_comma_separated_allowlist() -> None:
+    s = make(frontend_origin="https://debate.truthcore.ai, https://debate-livid.vercel.app")
+    validate_settings(s)  # both valid → no raise
+    assert s.frontend_origins == [
+        "https://debate.truthcore.ai",
+        "https://debate-livid.vercel.app",
+    ]
+
+
+def test_frontend_origin_rejects_bad_entry_in_list() -> None:
+    with pytest.raises(ConfigError):
+        validate_settings(make(frontend_origin="https://ok.example.com,app.example.com"))
+
+
 def test_bad_perplexity_key_rejected() -> None:
     with pytest.raises(ConfigError, match="sonar key"):
         validate_settings(make(perplexity_api_key="sk-wrongprovider"))

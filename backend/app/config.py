@@ -39,6 +39,14 @@ class Settings(BaseSettings):
     # Daily global LLM-call ceiling; breaker trips above this (SECURITY.md §3).
     daily_llm_call_ceiling: int = 200
 
+    @property
+    def frontend_origins(self) -> list[str]:
+        """CORS allowlist. FRONTEND_ORIGIN may be a comma-separated list so the
+        app can be served from several exact origins (e.g. the custom domain and
+        the *.vercel.app alias). Still an explicit allowlist — never a wildcard
+        (SECURITY.md §7)."""
+        return [o.strip() for o in self.frontend_origin.split(",") if o.strip()]
+
 
 def _jwt_payload(token: str) -> dict | None:
     """Decode a JWT payload without verifying. Returns None if not a JWT."""
@@ -68,14 +76,17 @@ def validate_settings(s: Settings) -> None:
     """Fail fast on well-formed-but-wrong configuration."""
     ref = supabase_project_ref(s.supabase_url)
 
-    if not s.frontend_origin.startswith(("http://", "https://")):
-        raise ConfigError(
-            f"FRONTEND_ORIGIN must be a full origin, got {s.frontend_origin[:24]!r}..."
-        )
-    if s.frontend_origin.endswith("/"):
-        raise ConfigError(
-            "FRONTEND_ORIGIN must not end with '/' — CORS compares exact origins."
-        )
+    origins = s.frontend_origins
+    if not origins:
+        raise ConfigError("FRONTEND_ORIGIN is empty.")
+    for origin in origins:
+        if not origin.startswith(("http://", "https://")):
+            raise ConfigError(f"FRONTEND_ORIGIN entry must be a full origin, got {origin[:24]!r}...")
+        if origin.endswith("/"):
+            raise ConfigError(
+                f"FRONTEND_ORIGIN entry {origin!r} must not end with '/' — CORS compares "
+                "exact origins."
+            )
 
     # Legacy Supabase keys are JWTs carrying their project ref and role, so we
     # can prove the key belongs to the same project the URL points at. Newer
