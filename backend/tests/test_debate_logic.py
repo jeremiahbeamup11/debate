@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from app.debate import TurnRequest
+from app.debate import TopicRequest, TurnRequest
 from app.game import (
     GRACE,
     DomainError,
@@ -14,6 +14,7 @@ from app.game import (
     state_after_advance,
     state_after_round_close,
     state_after_turn,
+    state_to_debating,
 )
 from pydantic import ValidationError
 
@@ -98,13 +99,37 @@ def test_round_three_close_completes_game() -> None:
     assert state["phase_deadline"] is None
 
 
-def test_initial_state_is_round_one_pro() -> None:
+def test_initial_state_is_topic_phase() -> None:
     state = initial_debate_state(NOW)
     assert (state["status"], state["current_round"], state["current_turn"]) == (
-        "debating",
+        "topic",
         1,
-        "pro",
+        None,
     )
+    assert state["phase_deadline"] is not None
+
+
+def test_begin_opens_round_one_pro() -> None:
+    state = state_to_debating(NOW)
+    assert (state["status"], state["current_turn"]) == ("debating", "pro")
+
+
+def test_no_turns_during_topic_phase() -> None:
+    with pytest.raises(DomainError) as e:
+        check_turn_allowed(room(status="topic"), "debater_pro", NOW)
+    assert e.value.status_code == 409
+
+
+def test_advance_topic_before_deadline_refused() -> None:
+    with pytest.raises(DomainError) as e:
+        state_after_advance(room(status="topic"), NOW)
+    assert e.value.status_code == 409
+
+
+def test_advance_expired_topic_phase_opens_debate() -> None:
+    late = NOW + timedelta(seconds=61)
+    state = state_after_advance(room(status="topic"), late)
+    assert (state["status"], state["current_turn"]) == ("debating", "pro")
 
 
 # --- advance (timer expiry) --------------------------------------------------
@@ -170,3 +195,31 @@ def test_turn_rejects_extra_fields() -> None:
 def test_empty_turn_rejected() -> None:
     with pytest.raises(ValidationError):
         TurnRequest.model_validate({"content": ""})
+
+
+# --- custom topics (§5/§8: capped, filtered, extra=forbid) -------------------
+
+
+def test_custom_topic_accepted_and_whitespace_collapsed() -> None:
+    req = TopicRequest.model_validate({"topic": "  Cats   are better\nthan dogs  "})
+    assert req.topic == "Cats are better than dogs"
+
+
+def test_custom_topic_char_cap() -> None:
+    with pytest.raises(ValidationError):
+        TopicRequest.model_validate({"topic": "x" * 201})
+
+
+def test_custom_topic_rejects_extra_fields() -> None:
+    with pytest.raises(ValidationError):
+        TopicRequest.model_validate({"topic": "ok", "status": "complete"})
+
+
+def test_custom_topic_profanity_rejected() -> None:
+    with pytest.raises(ValidationError):
+        TopicRequest.model_validate({"topic": "this topic is shit"})
+
+
+def test_custom_topic_empty_after_strip_rejected() -> None:
+    with pytest.raises(ValidationError):
+        TopicRequest.model_validate({"topic": "   "})

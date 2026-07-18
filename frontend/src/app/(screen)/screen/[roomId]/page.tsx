@@ -45,6 +45,7 @@ export default function ScreenPage() {
   const { room, players, turns, votes, checks, error } = useRoom(roomId);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [topicDraft, setTopicDraft] = useState("");
   const seconds = useCountdown(room?.phase_deadline ?? null);
   const advancing = useRef(false);
   const completedTracked = useRef(false);
@@ -53,7 +54,8 @@ export default function ScreenPage() {
   // Advance driver: when the server-set deadline has clearly passed, poke the
   // backend. The server re-checks its own clock, so this can never rush a phase.
   useEffect(() => {
-    if (!room || (room.status !== "debating" && room.status !== "voting")) return;
+    if (!room || (room.status !== "topic" && room.status !== "debating" && room.status !== "voting"))
+      return;
     if (seconds !== 0 || advancing.current) return;
     const timer = setTimeout(() => {
       if (advancing.current) return;
@@ -97,6 +99,19 @@ export default function ScreenPage() {
     }
   }
 
+  async function setCustomTopic() {
+    setBusy(true);
+    setActionError(null);
+    try {
+      await apiPost(`/rooms/${roomId}/topic`, { topic: topicDraft.trim() });
+      setTopicDraft("");
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : "Could not set the topic");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const nameOf = (side: "pro" | "con") =>
     players.find((p) => p.role === (side === "pro" ? "debater_pro" : "debater_con"))
       ?.display_name ?? "?";
@@ -107,11 +122,7 @@ export default function ScreenPage() {
     votes,
     room?.status === "complete" ? TOTAL_ROUNDS : (room?.current_round ?? 1) - 1,
   );
-  const canReroll =
-    room?.status === "debating" &&
-    room.current_round === 1 &&
-    !room.reroll_used &&
-    turns.length === 0;
+  const canReroll = room?.status === "topic" && !room.reroll_used;
 
   return (
     <main className="flex min-h-screen flex-col p-10">
@@ -164,6 +175,57 @@ export default function ScreenPage() {
         </section>
       )}
 
+      {room?.status === "topic" && (
+        <section className="flex flex-1 flex-col items-center justify-center gap-8 text-center">
+          <p className="text-sm font-bold tracking-widest text-fg/40">THE TOPIC IS</p>
+          <p className="max-w-3xl text-5xl font-extrabold leading-tight">“{room.topic_text}”</p>
+          <p className="text-lg text-fg/50">
+            <span className="text-pro">{nameOf("pro")} (PRO)</span> vs{" "}
+            <span className="text-con">{nameOf("con")} (CON)</span>
+          </p>
+          <p className="text-fg/40">
+            Debate starts in{" "}
+            <span className="tabular-nums font-bold text-fg/70">{seconds ?? "–"}s</span> — read up,
+            debaters
+          </p>
+          <div className="flex w-full max-w-lg flex-col items-center gap-3">
+            <div className="flex w-full gap-2">
+              <input
+                value={topicDraft}
+                onChange={(e) => setTopicDraft(e.target.value.slice(0, 200))}
+                placeholder="…or type your own topic"
+                className="flex-1 rounded-[10px] border border-line bg-surface px-4 py-3 text-base outline-none placeholder:text-fg/30 focus:border-brand"
+              />
+              <button
+                onClick={() => void setCustomTopic()}
+                disabled={busy || topicDraft.trim().length === 0}
+                className="rounded-[10px] border border-line bg-elevated px-4 py-3 font-bold hover:border-brand disabled:opacity-40"
+              >
+                Use it
+              </button>
+            </div>
+            <div className="flex items-center gap-3">
+              {canReroll && (
+                <button
+                  onClick={() => void act(`/rooms/${roomId}/reroll`)}
+                  disabled={busy}
+                  className="rounded-full border border-line bg-surface px-4 py-2 text-sm text-fg/70 hover:text-fg disabled:opacity-40"
+                >
+                  ↻ Re-roll topic (once)
+                </button>
+              )}
+              <button
+                onClick={() => void act(`/rooms/${roomId}/begin`)}
+                disabled={busy}
+                className="rounded-[10px] bg-brand px-8 py-3 text-lg font-bold text-brand-ink transition hover:brightness-110 disabled:opacity-40"
+              >
+                Start debating →
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
+
       {(room?.status === "debating" || room?.status === "voting") && (
         <section className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 pt-8">
           <div className="text-center">
@@ -172,15 +234,6 @@ export default function ScreenPage() {
               <span className="text-pro">{nameOf("pro")} (PRO)</span> vs{" "}
               <span className="text-con">{nameOf("con")} (CON)</span>
             </p>
-            {canReroll && (
-              <button
-                onClick={() => void act(`/rooms/${roomId}/reroll`)}
-                disabled={busy}
-                className="mt-2 rounded-full border border-line bg-surface px-4 py-1 text-sm text-fg/70 hover:text-fg disabled:opacity-40"
-              >
-                ↻ Re-roll topic (once)
-              </button>
-            )}
           </div>
 
           <div className="flex flex-1 flex-col gap-3">

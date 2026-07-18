@@ -12,11 +12,12 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from postgrest.exceptions import APIError
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.auth import get_current_user_id
 from app.db import get_db
 from app.game import (
+    TOPIC_CHAR_CAP,
     TURN_CHAR_CAP,
     DomainError,
     check_turn_allowed,
@@ -24,6 +25,7 @@ from app.game import (
     state_after_advance,
     state_after_round_close,
     state_after_turn,
+    state_to_debating,
     utcnow,
 )
 from app.limits import limiter
@@ -44,6 +46,25 @@ class VoteRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     vote: Literal["pro", "con"]
+
+
+class TopicRequest(BaseModel):
+    """Host-typed custom topic — user text, so §5/§8 apply: capped, filtered,
+    and only ever rendered as plain text."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    topic: str = Field(min_length=1, max_length=TOPIC_CHAR_CAP)
+
+    @field_validator("topic")
+    @classmethod
+    def clean_topic(cls, v: str) -> str:
+        v = " ".join(v.split())
+        if not v:
+            raise ValueError("topic is empty")
+        if contains_blocked_word(v):
+            raise ValueError("topic not allowed")
+        return v
 
 
 def _get_room(db: Any, room_id: UUID) -> dict:
@@ -228,6 +249,53 @@ def advance(
     return {"ok": True}
 
 
+@router.post("/rooms/{room_id}/begin")
+@limiter.limit("30/minute")
+def begin_debate(
+    request: Request,
+    room_id: UUID,
+    user_id: str = Depends(get_current_user_id),
+) -> dict:
+    """Host skips the rest of the topic-reveal window and opens round 1."""
+    db = get_db()
+    room = _get_room(db, room_id)
+    if room["host_user_id"] != user_id:
+        raise HTTPException(status_code=403, detail="Only the host can start the debate")
+    game = _get_current_game(db, room)
+    if game["status"] != "topic":
+        raise HTTPException(status_code=409, detail="The debate has already started")
+    _apply_game_state(db, game, state_to_debating(utcnow()))
+    return {"ok": True}
+
+
+@router.post("/rooms/{room_id}/topic")
+@limiter.limit("30/minute")
+def set_custom_topic(
+    request: Request,
+    room_id: UUID,
+    body: TopicRequest,
+    user_id: str = Depends(get_current_user_id),
+) -> dict:
+    """Host replaces the drawn topic with their own, during the topic phase only."""
+    db = get_db()
+    room = _get_room(db, room_id)
+    if room["host_user_id"] != user_id:
+        raise HTTPException(status_code=403, detail="Only the host can set the topic")
+    game = _get_current_game(db, room)
+    if game["status"] != "topic":
+        raise HTTPException(status_code=409, detail="Too late to change the topic")
+    result = (
+        db.table("games")
+        .update({"topic_text": body.topic})
+        .eq("id", game["id"])
+        .eq("status", "topic")
+        .execute()
+    )
+    if not result.data:
+        raise HTTPException(status_code=409, detail="Too late to change the topic")
+    return {"topic": body.topic}
+
+
 @router.post("/rooms/{room_id}/reroll")
 @limiter.limit("10/hour")
 def reroll_topic(
@@ -235,7 +303,7 @@ def reroll_topic(
     room_id: UUID,
     user_id: str = Depends(get_current_user_id),
 ) -> dict:
-    """Host may redraw the topic once per game, before any turn is submitted."""
+    """Host may redraw the topic once per game, during the topic phase."""
     db = get_db()
     room = _get_room(db, room_id)
     if room["host_user_id"] != user_id:
@@ -243,14 +311,7 @@ def reroll_topic(
     game = _get_current_game(db, room)
     if game["reroll_used"]:
         raise HTTPException(status_code=409, detail="Re-roll already used")
-    if not (
-        game["status"] == "debating"
-        and game["current_round"] == 1
-        and game["current_turn"] == "pro"
-    ):
-        raise HTTPException(status_code=409, detail="Too late to re-roll")
-    turns = db.table("turns").select("id").eq("game_id", game["id"]).limit(1).execute()
-    if turns.data:
+    if game["status"] != "topic":
         raise HTTPException(status_code=409, detail="Too late to re-roll")
 
     topic = db.rpc("pick_random_topic").execute()
@@ -262,6 +323,7 @@ def reroll_topic(
         .update({"topic_text": topic_text, "reroll_used": True})
         .eq("id", game["id"])
         .eq("reroll_used", False)
+        .eq("status", "topic")
         .execute()
     )
     if not result.data:

@@ -115,6 +115,27 @@ export default function PlayPage() {
         </>
       )}
 
+      {room?.status === "topic" && (
+        <div className="flex max-w-sm flex-col gap-3">
+          <p className="text-sm font-bold tracking-widest text-fg/40">THE TOPIC IS</p>
+          <p className="text-2xl font-extrabold leading-snug">“{room.topic_text}”</p>
+          {mySide ? (
+            <p className="text-lg">
+              You&apos;re{" "}
+              <span className={`font-bold ${mySide === "pro" ? "text-pro" : "text-con"}`}>
+                {mySide === "pro" ? "PRO" : "CON"}
+              </span>{" "}
+              — argue {mySide === "pro" ? "for" : "against"}{" "}it. You don&apos;t get a choice.
+            </p>
+          ) : (
+            <p className="text-lg text-fg/70">You&apos;re a judge — listen close, vote honest.</p>
+          )}
+          <p className="text-fg/40">
+            Debate starts in <span className="tabular-nums font-bold text-fg/70">{seconds ?? "–"}s</span>
+          </p>
+        </div>
+      )}
+
       {(room?.status === "debating" || room?.status === "voting") && (
         <p className="text-sm text-fg/50">
           Round {room.current_round} of 3 — “{room.topic_text}”

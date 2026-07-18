@@ -15,7 +15,7 @@ export interface Room {
   id: string;
   code: string;
   current_game_id: string | null;
-  status: "lobby" | "debating" | "voting" | "complete";
+  status: "lobby" | "topic" | "debating" | "voting" | "complete";
   topic_text: string | null;
   current_round: number;
   current_turn: "pro" | "con" | null;
@@ -56,7 +56,7 @@ interface RoomRow {
 }
 interface GameRow {
   id: string;
-  status: "debating" | "voting" | "complete";
+  status: "topic" | "debating" | "voting" | "complete";
   topic_text: string | null;
   current_round: number;
   current_turn: "pro" | "con" | null;

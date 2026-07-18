@@ -19,9 +19,11 @@ MIN_PLAYERS = 3
 MAX_PLAYERS = 8
 
 TOTAL_ROUNDS = 3
+TOPIC_SECONDS = 105  # topic-reveal phase before round 1 (1m45s); host can skip
 TURN_SECONDS = 60
 VOTE_SECONDS = 20
 TURN_CHAR_CAP = 500
+TOPIC_CHAR_CAP = 200
 
 # Judge-triggered fact-checks (PROJECT.md "Fact-checking: on-demand"):
 # a game mechanic as much as a cost control.
@@ -57,9 +59,20 @@ def role_side(role: str | None) -> str | None:
 
 
 def initial_debate_state(now: datetime) -> dict[str, Any]:
+    """Games open in a topic-reveal phase so everyone can read the topic (and
+    the host can re-roll or set a custom one) before round 1 starts."""
+    return {
+        "status": "topic",
+        "current_round": 1,
+        "current_turn": None,
+        "phase_deadline": (now + timedelta(seconds=TOPIC_SECONDS)).isoformat(),
+    }
+
+
+def state_to_debating(now: datetime) -> dict[str, Any]:
+    """Leave the topic phase and open round 1 for PRO."""
     return {
         "status": "debating",
-        "current_round": 1,
         "current_turn": "pro",
         "phase_deadline": (now + timedelta(seconds=TURN_SECONDS)).isoformat(),
     }
@@ -118,10 +131,12 @@ def state_after_advance(room: Mapping[str, Any], now: datetime) -> dict[str, Any
     Callers can only poke; this refuses unless the server-side deadline has
     truly passed, so nobody can rush a phase.
     """
-    if room["status"] not in ("debating", "voting"):
+    if room["status"] not in ("topic", "debating", "voting"):
         raise DomainError(409, "Nothing to advance")
     if now <= _deadline(room):
         raise DomainError(409, "Deadline has not passed")
+    if room["status"] == "topic":
+        return state_to_debating(now)
     if room["status"] == "debating":
         return state_after_turn(room, now)
     return state_after_round_close(room, now)
