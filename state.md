@@ -32,7 +32,9 @@ Nothing marked passed without a live check. Scripts in scratchpad: m4_make_game.
 **MVP DEPLOYED TO PRODUCTION AND VERIFIED — 2026-07-13.** M1–M5 all reviewed and approved.
 
 ### Production stack
-- Frontend (Vercel): **https://debate-livid.vercel.app** — project `debate`, root `frontend/`, framework preset Next.js. Env points at the Truthcore AI Supabase project.
+- **Canonical public URL: https://debate.truthcore.ai** (Vercel custom domain on the `debate` project). Also served at https://debate-livid.vercel.app (alias/fallback).
+- Frontend (Vercel): project `debate`, root `frontend/`, framework preset Next.js. Env points at the Truthcore AI Supabase project.
+- CORS allowlist supports a comma-separated `FRONTEND_ORIGIN`; prod value is `https://debate.truthcore.ai,https://debate-livid.vercel.app` (both exact origins, no wildcard). A single-origin value 400s the preflight from the other domain — that was the "failed to load" bug (CORS preflight 400 from debate.truthcore.ai while FRONTEND_ORIGIN only had the vercel alias). Fixed 2026-07-13; verified create-room works end-to-end in a real browser from debate.truthcore.ai.
 - Backend (Render): **https://debate-night.onrender.com** — root `backend/`, start `uvicorn app.main:app --host 0.0.0.0 --port $PORT`. Free tier (idle spin-down → first request after quiet ~30-60s).
 - Database (Supabase): **`gwgqdwbzcoicqhurjese`** ("Debate Night" under the **Truthcore AI** org). Migrations 0001–0005 applied via SQL Editor (combined script); anonymous sign-in enabled; 40 topics seeded.
 - CORS: `FRONTEND_ORIGIN=https://debate-livid.vercel.app` (exact-match; Vercel previews are intentionally CORS-blocked).
