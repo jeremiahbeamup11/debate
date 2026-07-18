@@ -34,8 +34,8 @@ export default function JoinPage() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-6 p-6">
       <div className="text-center">
-        <h1 className="text-3xl font-black">{PRODUCT_NAME}</h1>
-        <p className="text-sm text-emerald-400">{POWERED_BY}</p>
+        <h1 className="text-3xl font-extrabold tracking-tight">{PRODUCT_NAME}</h1>
+        <p className="text-sm font-semibold text-brand">{POWERED_BY}</p>
       </div>
       <form onSubmit={(e) => void join(e)} className="flex w-full max-w-xs flex-col gap-4">
         <input
@@ -46,7 +46,7 @@ export default function JoinPage() {
           autoCapitalize="characters"
           autoComplete="off"
           required
-          className="rounded-xl bg-zinc-800 px-4 py-4 text-center font-mono text-2xl font-bold tracking-[0.3em] uppercase placeholder:text-zinc-600"
+          className="rounded-[10px] border border-line bg-surface px-4 py-4 text-center text-2xl font-bold uppercase tracking-[0.3em] outline-none placeholder:text-fg/30 focus:border-brand"
         />
         <input
           value={name}
@@ -54,16 +54,16 @@ export default function JoinPage() {
           placeholder="Your name"
           maxLength={24}
           required
-          className="rounded-xl bg-zinc-800 px-4 py-4 text-center text-xl placeholder:text-zinc-600"
+          className="rounded-[10px] border border-line bg-surface px-4 py-4 text-center text-xl outline-none placeholder:text-fg/30 focus:border-brand"
         />
         <button
           type="submit"
           disabled={joining || code.length !== 4 || name.trim().length === 0}
-          className="rounded-xl bg-emerald-500 px-6 py-4 text-xl font-bold text-zinc-950 hover:bg-emerald-400 disabled:opacity-40"
+          className="rounded-[10px] bg-brand px-6 py-4 text-xl font-bold text-brand-ink transition hover:brightness-110 disabled:opacity-40"
         >
           {joining ? "Joining…" : "Join"}
         </button>
-        {error && <p className="text-center text-red-400">{error}</p>}
+        {error && <p className="text-center text-vfalse">{error}</p>}
       </form>
     </main>
   );

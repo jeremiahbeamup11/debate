@@ -25,32 +25,35 @@ export default function HomePage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-8 p-8 text-center">
-      <div>
-        <h1 className="text-5xl font-black tracking-tight">{PRODUCT_NAME}</h1>
+    <main className="flex min-h-screen flex-col items-center justify-center gap-10 p-8 text-center">
+      {/* Landing-only neon flourish (item 4): white "Debate Night", purple TruthCore. */}
+      <div className="flex flex-col items-center gap-4">
+        <h1 className="neon-white neon-flicker text-6xl font-extrabold tracking-tight sm:text-8xl">
+          {PRODUCT_NAME}
+        </h1>
         <a
           href={TRUTHCORE_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-2 block text-sm font-medium text-emerald-400 hover:underline"
+          className="neon-purple text-2xl font-bold tracking-wide sm:text-3xl"
         >
           {POWERED_BY}
         </a>
       </div>
-      <p className="max-w-md text-lg text-zinc-400">
+      <p className="max-w-md text-lg text-fg/50">
         Two friends debate. Everyone else judges. TruthCore drops fact-checks live.
       </p>
       <button
         onClick={() => void createRoom()}
         disabled={creating}
-        className="rounded-xl bg-emerald-500 px-8 py-4 text-xl font-bold text-zinc-950 hover:bg-emerald-400 disabled:opacity-50"
+        className="rounded-[10px] bg-brand px-8 py-4 text-xl font-bold text-brand-ink transition hover:brightness-110 disabled:opacity-50"
       >
         {creating ? "Creating…" : "Create a room"}
       </button>
-      {error && <p className="text-red-400">{error}</p>}
-      <p className="text-sm text-zinc-500">
-        Put this screen on the TV. Players join at <span className="font-mono">/join</span> on
-        their phones.
+      {error && <p className="text-vfalse">{error}</p>}
+      <p className="text-sm text-fg/40">
+        Put this screen on the TV. Players join at{" "}
+        <span className="font-semibold text-fg/70">/join</span> on their phones.
       </p>
     </main>
   );

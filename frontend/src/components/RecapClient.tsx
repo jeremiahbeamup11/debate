@@ -29,7 +29,7 @@ export function RecapClient({ gameId }: { gameId: string }) {
   return (
     <button
       onClick={() => void share()}
-      className="rounded-xl bg-emerald-500 px-6 py-3 font-bold text-zinc-950 hover:bg-emerald-400"
+      className="rounded-[10px] bg-brand px-6 py-3 font-bold text-brand-ink transition hover:brightness-110"
     >
       {copied ? "Link copied ✓" : "Share this recap"}
     </button>

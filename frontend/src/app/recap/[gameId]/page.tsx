@@ -21,9 +21,9 @@ interface RecapGame {
 function NotAvailable() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-4 p-8 text-center">
-      <h1 className="text-3xl font-black">{PRODUCT_NAME}</h1>
-      <p className="text-zinc-400">This recap isn&apos;t available.</p>
-      <Link href="/" className="text-emerald-400 hover:underline">
+      <h1 className="text-3xl font-extrabold tracking-tight">{PRODUCT_NAME}</h1>
+      <p className="text-fg/50">This recap isn&apos;t available.</p>
+      <Link href="/" className="font-semibold text-brand hover:text-fg">
         Start a new game →
       </Link>
     </main>
@@ -79,25 +79,31 @@ export default async function RecapPage({
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-8 p-6 md:p-10">
       <header className="flex items-baseline justify-between">
-        <h1 className="text-2xl font-black">{PRODUCT_NAME}</h1>
+        <h1 className="text-2xl font-extrabold tracking-tight">{PRODUCT_NAME}</h1>
         <a
           href={TRUTHCORE_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-sm font-medium text-emerald-400 hover:underline"
+          className="text-sm font-semibold text-brand hover:text-fg"
         >
           {POWERED_BY}
         </a>
       </header>
 
       <section className="flex flex-col items-center gap-4 text-center">
-        <p className="text-lg text-zinc-400">“{game.topic_text}”</p>
-        <p className="text-5xl font-black">
-          {winner === "tie" ? "It's a tie!" : `${nameOf(winner)} wins!`}
+        <p className="text-lg text-fg/50">“{game.topic_text}”</p>
+        <p className="text-5xl font-extrabold">
+          {winner === "tie" ? (
+            "It's a tie!"
+          ) : (
+            <span className={winner === "pro" ? "text-pro" : "text-con"}>
+              {nameOf(winner)} wins!
+            </span>
+          )}
         </p>
-        <p className="text-sm text-zinc-400">
-          <span className="text-emerald-400">{nameOf("pro")} (PRO)</span> vs{" "}
-          <span className="text-rose-400">{nameOf("con")} (CON)</span>
+        <p className="text-sm text-fg/50">
+          <span className="text-pro">{nameOf("pro")} (PRO)</span> vs{" "}
+          <span className="text-con">{nameOf("con")} (CON)</span>
         </p>
         <RecapClient gameId={gameId} />
       </section>
@@ -109,15 +115,19 @@ export default async function RecapPage({
         const r = results[round - 1];
         return (
           <section key={round} className="flex flex-col gap-3">
-            <p className="text-xs font-bold tracking-widest text-zinc-500">ROUND {round}</p>
+            <p className="text-xs font-bold tracking-widest text-fg/40">ROUND {round}</p>
             {roundTurns.map((t) => {
               const pro = t.side === "pro";
               return (
                 <div
                   key={t.id}
-                  className={`max-w-xl rounded-2xl p-4 ${pro ? "self-start bg-emerald-900/50" : "self-end bg-rose-900/50"}`}
+                  className={`max-w-xl rounded-2xl border p-4 ${
+                    pro ? "self-start border-pro/25 bg-pro/10" : "self-end border-con/25 bg-con/10"
+                  }`}
                 >
-                  <p className={`text-xs font-bold tracking-widest ${pro ? "text-emerald-400" : "text-rose-400"}`}>
+                  <p
+                    className={`text-xs font-bold tracking-widest ${pro ? "text-pro" : "text-con"}`}
+                  >
                     {pro ? "PRO" : "CON"} — {nameOf(t.side)}
                   </p>
                   {/* Hostile input rendered as plain text (SECURITY.md §5) */}
@@ -128,21 +138,22 @@ export default async function RecapPage({
             {roundChecks.map((c) => (
               <FactCheckCard key={c.id} check={c} judgeName={judgeNameOf(c.judge_player_id)} />
             ))}
-            <p className="self-center rounded-full bg-zinc-800 px-4 py-1 text-sm text-zinc-300">
-              Round {round}: PRO {r.pro} — {r.con} CON{" "}
+            <p className="self-center rounded-full border border-line bg-surface px-4 py-1 text-sm text-fg/70">
+              Round {round}: <span className="text-pro">PRO {r.pro}</span> —{" "}
+              <span className="text-con">{r.con} CON</span>{" "}
               {r.winner === "tie" ? "· tie" : `· ${r.winner.toUpperCase()} takes it`}
             </p>
           </section>
         );
       })}
 
-      <footer className="mt-4 flex flex-col items-center gap-3 border-t border-zinc-800 pt-8 text-center">
-        <p className="text-zinc-400">Fact-checks powered by TruthCore.</p>
+      <footer className="mt-4 flex flex-col items-center gap-3 border-t border-line pt-8 text-center">
+        <p className="text-fg/50">Fact-checks powered by TruthCore.</p>
         <a
           href={TRUTHCORE_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="rounded-xl border border-emerald-500 px-6 py-3 font-bold text-emerald-400 hover:bg-emerald-500 hover:text-zinc-950"
+          className="rounded-[10px] border border-brand px-6 py-3 font-bold text-brand hover:bg-brand hover:text-brand-ink"
         >
           Try TruthCore →
         </a>

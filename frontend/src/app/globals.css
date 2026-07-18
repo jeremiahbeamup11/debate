@@ -1,26 +1,62 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* Design tokens read from the live TruthCore source (truthcore-frontend):
+   background #0a0a0c, text #e8eaf0, Syne, primary gray #7d7f7c, and the exact
+   verdict colors. PRO/CON blue/orange are the one intentional divergence —
+   both are in TruthCore's palette and kept off the verdict hues. */
+@theme {
+  --font-sans: var(--font-syne), "Syne", ui-sans-serif, system-ui, sans-serif;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --color-bg: #0a0a0c;
+  --color-surface: rgba(255, 255, 255, 0.025);
+  --color-elevated: #141417;
+  --color-fg: #e8eaf0;
+  --color-brand: #7d7f7c;
+  --color-brand-ink: #0a0a0c;
+  --color-line: rgba(255, 255, 255, 0.08);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-pro: #60a5fa;
+  --color-con: #fb923c;
+  --color-neon: #c084fc;
+
+  --color-vtrue: #4ade80;
+  --color-vfalse: #f87171;
+  --color-vmisleading: #fbbf24;
+  --color-vunverifiable: #94a3b8;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Landing-page-only neon-sign flourish (item 4). CSS text-shadow only. */
+.neon-white {
+  color: #fff;
+  text-shadow:
+    0 0 4px #fff,
+    0 0 11px #fff,
+    0 0 20px rgba(232, 234, 240, 0.9),
+    0 0 44px rgba(232, 234, 240, 0.55),
+    0 0 68px rgba(232, 234, 240, 0.35);
+}
+.neon-purple {
+  color: #ecd9ff;
+  text-shadow:
+    0 0 4px #f3e6ff,
+    0 0 12px #c084fc,
+    0 0 22px #c084fc,
+    0 0 44px rgba(192, 132, 252, 0.75),
+    0 0 68px rgba(192, 132, 252, 0.45);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .neon-flicker {
+    animation: neonFlicker 4.5s infinite steps(1);
+  }
+}
+@keyframes neonFlicker {
+  0%, 42%, 44%, 61%, 63%, 100% { opacity: 1; }
+  43%, 62% { opacity: 0.72; }
 }

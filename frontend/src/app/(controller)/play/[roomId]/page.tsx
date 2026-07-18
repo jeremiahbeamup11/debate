@@ -17,7 +17,7 @@ const noopSubscribe = () => () => {};
 
 export default function PlayPage() {
   const { roomId } = useParams<{ roomId: string }>();
-  const { room, players, turns, votes, checks, error } = useRoom(roomId);
+  const { room, players, votes, checks, error } = useRoom(roomId);
   const playerId = useSyncExternalStore(
     noopSubscribe,
     () => window.sessionStorage.getItem("player_id"),
@@ -33,8 +33,7 @@ export default function PlayPage() {
   const seconds = useCountdown(room?.phase_deadline ?? null);
 
   const me = players.find((p) => p.id === playerId);
-  const mySide =
-    me?.role === "debater_pro" ? "pro" : me?.role === "debater_con" ? "con" : null;
+  const mySide = me?.role === "debater_pro" ? "pro" : me?.role === "debater_con" ? "con" : null;
   const myTurn = room?.status === "debating" && mySide !== null && room.current_turn === mySide;
 
   async function submitTurn() {
@@ -98,18 +97,18 @@ export default function PlayPage() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-6 p-6 text-center">
       <div>
-        <h1 className="text-2xl font-black">{PRODUCT_NAME}</h1>
-        <p className="text-xs text-emerald-400">{POWERED_BY}</p>
+        <h1 className="text-2xl font-extrabold tracking-tight">{PRODUCT_NAME}</h1>
+        <p className="text-xs font-semibold text-brand">{POWERED_BY}</p>
       </div>
 
-      {error && <p className="text-red-400">{error}</p>}
+      {error && <p className="text-vfalse">{error}</p>}
 
       {room?.status === "lobby" && (
         <>
           <p className="text-xl">
             You&apos;re in{me ? `, ${me.display_name}` : ""}! Waiting for the host to start…
           </p>
-          <p className="text-zinc-400">
+          <p className="text-fg/50">
             {players.length} player{players.length === 1 ? "" : "s"} in the lobby:{" "}
             {players.map((p) => p.display_name).join(", ")}
           </p>
@@ -117,7 +116,7 @@ export default function PlayPage() {
       )}
 
       {(room?.status === "debating" || room?.status === "voting") && (
-        <p className="text-sm text-zinc-400">
+        <p className="text-sm text-fg/50">
           Round {room.current_round} of 3 — “{room.topic_text}”
         </p>
       )}
@@ -126,24 +125,27 @@ export default function PlayPage() {
       {myTurn && (
         <div className="flex w-full max-w-sm flex-col gap-3">
           <p className="text-lg font-bold">
-            Your turn ({mySide === "pro" ? "PRO" : "CON"}){" "}
-            {seconds !== null && <span className="font-mono text-emerald-400">{seconds}s</span>}
+            Your turn (
+            <span className={mySide === "pro" ? "text-pro" : "text-con"}>
+              {mySide === "pro" ? "PRO" : "CON"}
+            </span>
+            ) {seconds !== null && <span className="tabular-nums text-brand">{seconds}s</span>}
           </p>
           <textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value.slice(0, TURN_CHAR_CAP))}
             rows={5}
             placeholder="Make your case…"
-            className="rounded-xl bg-zinc-800 p-4 text-base placeholder:text-zinc-600"
+            className="rounded-[10px] border border-line bg-surface p-4 text-base outline-none placeholder:text-fg/30 focus:border-brand"
           />
           <div className="flex items-center justify-between">
-            <span className="text-xs text-zinc-500">
+            <span className="text-xs text-fg/40">
               {draft.length}/{TURN_CHAR_CAP}
             </span>
             <button
               onClick={() => void submitTurn()}
               disabled={busy || draft.trim().length === 0}
-              className="rounded-xl bg-emerald-500 px-6 py-3 font-bold text-zinc-950 hover:bg-emerald-400 disabled:opacity-40"
+              className="rounded-[10px] bg-brand px-6 py-3 font-bold text-brand-ink transition hover:brightness-110 disabled:opacity-40"
             >
               Submit
             </button>
@@ -153,27 +155,25 @@ export default function PlayPage() {
 
       {/* Debater: waiting */}
       {room?.status === "debating" && mySide && !myTurn && (
-        <p className="text-lg text-zinc-300">
+        <p className="text-lg text-fg/70">
           {nameOf(room.current_turn ?? "pro")} is typing… your turn is coming.
         </p>
       )}
       {room?.status === "voting" && mySide && (
-        <p className="text-lg text-zinc-300">Judges are deciding round {room.current_round}…</p>
+        <p className="text-lg text-fg/70">Judges are deciding round {room.current_round}…</p>
       )}
 
       {/* Judge */}
       {room?.status === "debating" && me?.role === "judge" && (
-        <p className="text-lg text-zinc-300">
-          Watch the main screen — you vote when the round ends.
-        </p>
+        <p className="text-lg text-fg/70">Watch the main screen — you vote when the round ends.</p>
       )}
 
       {/* Judge fact-check affordance — available all round (debating + voting) */}
       {isJudge && roundLive && (
-        <div className="flex w-full max-w-sm flex-col gap-2 rounded-2xl border border-emerald-500/30 p-4">
+        <div className="flex w-full max-w-sm flex-col gap-2 rounded-2xl border border-brand/30 bg-surface p-4">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-bold text-emerald-400">TruthCore fact-check</span>
-            <span className="text-xs text-zinc-500">{remaining} left this round</span>
+            <span className="text-sm font-bold text-brand">TruthCore fact-check</span>
+            <span className="text-xs text-fg/40">{remaining} left this round</span>
           </div>
 
           {iAlreadyChecked ? (
@@ -186,7 +186,7 @@ export default function PlayPage() {
               />
             ))
           ) : remaining === 0 ? (
-            <p className="text-sm text-zinc-500">No fact-checks left this round.</p>
+            <p className="text-sm text-fg/40">No fact-checks left this round.</p>
           ) : checkOpen ? (
             <>
               <textarea
@@ -194,10 +194,10 @@ export default function PlayPage() {
                 onChange={(e) => setClaimDraft(e.target.value.slice(0, CLAIM_CHAR_CAP))}
                 rows={3}
                 placeholder="Type the exact claim to check…"
-                className="rounded-xl bg-zinc-800 p-3 text-sm placeholder:text-zinc-600"
+                className="rounded-[10px] border border-line bg-elevated p-3 text-sm outline-none placeholder:text-fg/30 focus:border-brand"
               />
               <div className="flex items-center justify-between">
-                <span className="text-xs text-zinc-500">
+                <span className="text-xs text-fg/40">
                   {claimDraft.length}/{CLAIM_CHAR_CAP}
                 </span>
                 <div className="flex gap-2">
@@ -206,14 +206,14 @@ export default function PlayPage() {
                       setCheckOpen(false);
                       setCheckError(null);
                     }}
-                    className="rounded-lg px-3 py-2 text-sm text-zinc-400"
+                    className="rounded-lg px-3 py-2 text-sm text-fg/50 hover:text-fg"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={() => void submitCheck()}
                     disabled={busy || claimDraft.trim().length === 0}
-                    className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-bold text-zinc-950 hover:bg-emerald-400 disabled:opacity-40"
+                    className="rounded-lg bg-brand px-4 py-2 text-sm font-bold text-brand-ink transition hover:brightness-110 disabled:opacity-40"
                   >
                     Check it
                   </button>
@@ -223,36 +223,36 @@ export default function PlayPage() {
           ) : (
             <button
               onClick={() => setCheckOpen(true)}
-              className="rounded-xl bg-zinc-800 px-4 py-3 text-sm font-bold hover:bg-zinc-700"
+              className="rounded-[10px] border border-line bg-elevated px-4 py-3 text-sm font-bold hover:border-brand"
             >
               🔍 Fact-check a claim
             </button>
           )}
-          {checkError && <p className="text-sm text-red-400">{checkError}</p>}
+          {checkError && <p className="text-sm text-vfalse">{checkError}</p>}
         </div>
       )}
 
       {room?.status === "voting" && me?.role === "judge" && (
         <div className="flex w-full max-w-sm flex-col gap-3">
           {votedRound === room.current_round ? (
-            <p className="text-lg font-bold text-emerald-400">Vote locked in ✓</p>
+            <p className="text-lg font-bold text-vtrue">Vote locked in ✓</p>
           ) : (
             <>
               <p className="text-lg font-bold">
                 Who won round {room.current_round}?{" "}
-                {seconds !== null && <span className="font-mono">{seconds}s</span>}
+                {seconds !== null && <span className="tabular-nums">{seconds}s</span>}
               </p>
               <button
                 onClick={() => void submitVote("pro")}
                 disabled={busy}
-                className="rounded-xl bg-emerald-600 px-6 py-4 text-lg font-bold hover:bg-emerald-500 disabled:opacity-40"
+                className="rounded-[10px] bg-pro px-6 py-4 text-lg font-bold text-brand-ink transition hover:brightness-110 disabled:opacity-40"
               >
                 {nameOf("pro")} (PRO)
               </button>
               <button
                 onClick={() => void submitVote("con")}
                 disabled={busy}
-                className="rounded-xl bg-rose-600 px-6 py-4 text-lg font-bold hover:bg-rose-500 disabled:opacity-40"
+                className="rounded-[10px] bg-con px-6 py-4 text-lg font-bold text-brand-ink transition hover:brightness-110 disabled:opacity-40"
               >
                 {nameOf("con")} (CON)
               </button>
@@ -262,21 +262,21 @@ export default function PlayPage() {
       )}
 
       {room?.status === "complete" && (
-        <div className="flex flex-col gap-2">
-          <p className="text-3xl font-black">
+        <div className="flex flex-col items-center gap-2">
+          <p className="text-3xl font-extrabold">
             {(() => {
               const w = gameWinner(tallyRounds(votes, 3));
               if (w === "tie") return "It's a tie!";
               return w === mySide ? "You win! 🏆" : `${nameOf(w)} wins!`;
             })()}
           </p>
-          <p className="text-zinc-400">Full recap on the main screen.</p>
+          <p className="text-fg/50">Full recap on the main screen.</p>
           {room.current_game_id && (
             <a
               href={`/recap/${room.current_game_id}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-2 rounded-xl border border-emerald-500 px-6 py-3 font-bold text-emerald-400 hover:bg-emerald-500 hover:text-zinc-950"
+              className="mt-2 rounded-[10px] border border-brand px-6 py-3 font-bold text-brand hover:bg-brand hover:text-brand-ink"
             >
               View recap →
             </a>
@@ -284,8 +284,7 @@ export default function PlayPage() {
         </div>
       )}
 
-      {actionError && <p className="text-red-400">{actionError}</p>}
-      {turns.length === 0 && null}
+      {actionError && <p className="text-vfalse">{actionError}</p>}
     </main>
   );
 }

@@ -1,16 +1,14 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Syne } from "next/font/google";
 import { POWERED_BY, PRODUCT_NAME } from "@/config/branding";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// Syne is TruthCore's typeface. Self-hosted by next/font (no external request),
+// which keeps the strict CSP intact.
+const syne = Syne({
+  variable: "--font-syne",
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
 });
 
 export const metadata: Metadata = {
@@ -24,11 +22,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col bg-zinc-950 text-zinc-50">{children}</body>
+    <html lang="en" className={`${syne.variable} h-full`}>
+      <body className="flex min-h-full flex-col bg-bg text-fg">{children}</body>
     </html>
   );
 }

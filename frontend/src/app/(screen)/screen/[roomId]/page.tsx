@@ -16,8 +16,12 @@ const TOTAL_ROUNDS = 3;
 function TurnBubble({ turn, name }: { turn: Turn; name: string }) {
   const pro = turn.side === "pro";
   return (
-    <div className={`max-w-xl rounded-2xl p-4 ${pro ? "self-start bg-emerald-900/50" : "self-end bg-rose-900/50"}`}>
-      <p className={`text-xs font-bold tracking-widest ${pro ? "text-emerald-400" : "text-rose-400"}`}>
+    <div
+      className={`max-w-xl rounded-2xl border p-4 ${
+        pro ? "self-start border-pro/25 bg-pro/10" : "self-end border-con/25 bg-con/10"
+      }`}
+    >
+      <p className={`text-xs font-bold tracking-widest ${pro ? "text-pro" : "text-con"}`}>
         {pro ? "PRO" : "CON"} — {name}
       </p>
       {/* User text rendered as plain text only (SECURITY.md §5) */}
@@ -28,8 +32,9 @@ function TurnBubble({ turn, name }: { turn: Turn; name: string }) {
 
 function RoundVotes({ result }: { result: RoundResult }) {
   return (
-    <p className="self-center rounded-full bg-zinc-800 px-4 py-1 text-sm text-zinc-300">
-      Round {result.round}: PRO {result.pro} — {result.con} CON{" "}
+    <p className="self-center rounded-full border border-line bg-surface px-4 py-1 text-sm text-fg/70">
+      Round {result.round}: <span className="text-pro">PRO {result.pro}</span> —{" "}
+      <span className="text-con">{result.con} CON</span>{" "}
       {result.winner === "tie" ? "· tie" : `· ${result.winner.toUpperCase()} takes it`}
     </p>
   );
@@ -98,49 +103,60 @@ export default function ScreenPage() {
   const judgeNameOf = (playerId: string) =>
     players.find((p) => p.id === playerId)?.display_name ?? "A judge";
   const judges = players.filter((p: Player) => p.role === "judge");
-  const results = tallyRounds(votes, room?.status === "complete" ? TOTAL_ROUNDS : (room?.current_round ?? 1) - 1);
+  const results = tallyRounds(
+    votes,
+    room?.status === "complete" ? TOTAL_ROUNDS : (room?.current_round ?? 1) - 1,
+  );
   const canReroll =
-    room?.status === "debating" && room.current_round === 1 && !room.reroll_used && turns.length === 0;
+    room?.status === "debating" &&
+    room.current_round === 1 &&
+    !room.reroll_used &&
+    turns.length === 0;
 
   return (
     <main className="flex min-h-screen flex-col p-10">
       <header className="flex items-baseline justify-between">
-        <h1 className="text-2xl font-black">{PRODUCT_NAME}</h1>
-        <a href={TRUTHCORE_URL} target="_blank" rel="noopener noreferrer"
-           className="text-sm font-medium text-emerald-400 hover:underline">
+        <h1 className="text-2xl font-extrabold tracking-tight">{PRODUCT_NAME}</h1>
+        <a
+          href={TRUTHCORE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-sm font-semibold text-brand hover:text-fg"
+        >
           {POWERED_BY}
         </a>
       </header>
 
-      {error && <p className="mt-10 text-center text-red-400">{error}</p>}
-      {actionError && <p className="mt-2 text-center text-red-400">{actionError}</p>}
+      {error && <p className="mt-10 text-center text-vfalse">{error}</p>}
+      {actionError && <p className="mt-2 text-center text-vfalse">{actionError}</p>}
 
       {room?.status === "lobby" && (
         <section className="flex flex-1 flex-col items-center justify-center gap-10">
           <div className="text-center">
-            <p className="text-lg text-zinc-400">Join on your phone with code</p>
-            <p className="font-mono text-8xl font-black tracking-[0.3em] text-emerald-400">
-              {room.code}
-            </p>
+            <p className="text-lg text-fg/50">Join on your phone with code</p>
+            <p className="text-8xl font-extrabold tracking-[0.3em]">{room.code}</p>
           </div>
           <ul className="flex max-w-2xl flex-wrap justify-center gap-3">
             {players.map((p) => (
-              <li key={p.id} className="rounded-full bg-zinc-800 px-5 py-2 text-lg font-semibold">
+              <li
+                key={p.id}
+                className="rounded-full border border-line bg-surface px-5 py-2 text-lg font-semibold"
+              >
                 {p.display_name}
               </li>
             ))}
-            {players.length === 0 && <li className="text-zinc-500">Waiting for players…</li>}
+            {players.length === 0 && <li className="text-fg/40">Waiting for players…</li>}
           </ul>
           <div className="text-center">
             <button
               onClick={() => void act(`/rooms/${roomId}/start`, "game_started")}
               disabled={busy || players.length < MIN_PLAYERS}
-              className="rounded-xl bg-emerald-500 px-8 py-4 text-xl font-bold text-zinc-950 hover:bg-emerald-400 disabled:opacity-40"
+              className="rounded-[10px] bg-brand px-8 py-4 text-xl font-bold text-brand-ink transition hover:brightness-110 disabled:opacity-40"
             >
               Start game
             </button>
             {players.length < MIN_PLAYERS && (
-              <p className="mt-2 text-sm text-zinc-500">
+              <p className="mt-2 text-sm text-fg/40">
                 Need at least {MIN_PLAYERS} players ({players.length} joined)
               </p>
             )}
@@ -151,16 +167,16 @@ export default function ScreenPage() {
       {(room?.status === "debating" || room?.status === "voting") && (
         <section className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 pt-8">
           <div className="text-center">
-            <p className="text-2xl font-black">“{room.topic_text}”</p>
-            <p className="mt-1 text-sm text-zinc-400">
-              <span className="text-emerald-400">{nameOf("pro")} (PRO)</span> vs{" "}
-              <span className="text-rose-400">{nameOf("con")} (CON)</span>
+            <p className="text-2xl font-extrabold">“{room.topic_text}”</p>
+            <p className="mt-1 text-sm text-fg/50">
+              <span className="text-pro">{nameOf("pro")} (PRO)</span> vs{" "}
+              <span className="text-con">{nameOf("con")} (CON)</span>
             </p>
             {canReroll && (
               <button
                 onClick={() => void act(`/rooms/${roomId}/reroll`)}
                 disabled={busy}
-                className="mt-2 rounded-full bg-zinc-800 px-4 py-1 text-sm text-zinc-300 hover:bg-zinc-700 disabled:opacity-40"
+                className="mt-2 rounded-full border border-line bg-surface px-4 py-1 text-sm text-fg/70 hover:text-fg disabled:opacity-40"
               >
                 ↻ Re-roll topic (once)
               </button>
@@ -170,7 +186,7 @@ export default function ScreenPage() {
           <div className="flex flex-1 flex-col gap-3">
             {Array.from({ length: room.current_round }, (_, i) => i + 1).map((round) => (
               <div key={round} className="flex flex-col gap-3">
-                <p className="self-center text-xs font-bold tracking-widest text-zinc-500">
+                <p className="self-center text-xs font-bold tracking-widest text-fg/40">
                   ROUND {round}
                 </p>
                 {turns
@@ -181,30 +197,26 @@ export default function ScreenPage() {
                 {checks
                   .filter((c) => c.round_number === round)
                   .map((c) => (
-                    <FactCheckCard
-                      key={c.id}
-                      check={c}
-                      judgeName={judgeNameOf(c.judge_player_id)}
-                    />
+                    <FactCheckCard key={c.id} check={c} judgeName={judgeNameOf(c.judge_player_id)} />
                   ))}
                 {results[round - 1] && <RoundVotes result={results[round - 1]} />}
               </div>
             ))}
           </div>
 
-          <div className="sticky bottom-6 self-center rounded-full bg-zinc-800 px-6 py-3 text-lg font-bold">
+          <div className="sticky bottom-6 self-center rounded-full border border-line bg-elevated px-6 py-3 text-lg font-bold">
             {room.status === "debating" ? (
               <>
                 Round {room.current_round} —{" "}
-                <span className={room.current_turn === "pro" ? "text-emerald-400" : "text-rose-400"}>
+                <span className={room.current_turn === "pro" ? "text-pro" : "text-con"}>
                   {nameOf(room.current_turn ?? "pro")}
                 </span>{" "}
-                is typing… {seconds !== null && <span className="font-mono">{seconds}s</span>}
+                is typing… {seconds !== null && <span className="tabular-nums">{seconds}s</span>}
               </>
             ) : (
               <>
                 Judges are voting ({judges.length}){" "}
-                {seconds !== null && <span className="font-mono">{seconds}s</span>}
+                {seconds !== null && <span className="tabular-nums">{seconds}s</span>}
               </>
             )}
           </div>
@@ -213,11 +225,14 @@ export default function ScreenPage() {
 
       {room?.status === "complete" && (
         <section className="flex flex-1 flex-col items-center justify-center gap-8 text-center">
-          <p className="text-xl text-zinc-400">“{room.topic_text}”</p>
-          <p className="text-6xl font-black">
+          <p className="text-xl text-fg/50">“{room.topic_text}”</p>
+          <p className="text-6xl font-extrabold">
             {(() => {
               const w = gameWinner(results);
-              return w === "tie" ? "It's a tie!" : `${nameOf(w)} wins!`;
+              if (w === "tie") return "It's a tie!";
+              return (
+                <span className={w === "pro" ? "text-pro" : "text-con"}>{nameOf(w)} wins!</span>
+              );
             })()}
           </p>
           <div className="flex flex-col gap-2">
@@ -229,7 +244,7 @@ export default function ScreenPage() {
             <button
               onClick={() => void act(`/rooms/${roomId}/replay`, "game_started")}
               disabled={busy}
-              className="rounded-xl bg-emerald-500 px-6 py-3 font-bold text-zinc-950 hover:bg-emerald-400 disabled:opacity-40"
+              className="rounded-[10px] bg-brand px-6 py-3 font-bold text-brand-ink transition hover:brightness-110 disabled:opacity-40"
             >
               Play again
             </button>
@@ -238,7 +253,7 @@ export default function ScreenPage() {
                 href={`/recap/${room.current_game_id}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded-xl border border-zinc-600 px-6 py-3 font-bold text-zinc-200 hover:bg-zinc-800"
+                className="rounded-[10px] border border-line px-6 py-3 font-bold text-fg hover:bg-surface"
               >
                 View recap →
               </a>
@@ -251,15 +266,9 @@ export default function ScreenPage() {
           </div>
           {checks.length > 0 && (
             <div className="flex w-full max-w-3xl flex-col gap-3">
-              <p className="text-sm font-bold tracking-widest text-zinc-500">
-                TRUTHCORE FACT-CHECKS
-              </p>
+              <p className="text-sm font-bold tracking-widest text-fg/40">TRUTHCORE FACT-CHECKS</p>
               {checks.map((c) => (
-                <FactCheckCard
-                  key={c.id}
-                  check={c}
-                  judgeName={judgeNameOf(c.judge_player_id)}
-                />
+                <FactCheckCard key={c.id} check={c} judgeName={judgeNameOf(c.judge_player_id)} />
               ))}
             </div>
           )}
