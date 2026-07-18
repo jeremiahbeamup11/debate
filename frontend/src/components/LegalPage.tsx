@@ -57,7 +57,21 @@ export function Section({ title, children }: { title: string; children: React.Re
   return (
     <section>
       <h2 className="text-xs font-bold uppercase tracking-wider text-fg">{title}</h2>
-      <div className="mt-3 text-sm leading-relaxed text-fg/50">{children}</div>
+      <div className="mt-3 space-y-3 text-sm leading-relaxed text-fg/50">{children}</div>
     </section>
+  );
+}
+
+/** Bullet list matching TruthCore's policy-page list styling. */
+export function Bullets({ items }: { items: React.ReactNode[] }) {
+  return (
+    <ul className="space-y-2">
+      {items.map((item, i) => (
+        <li key={i} className="flex items-start gap-3">
+          <span className="mt-2 h-[3px] w-[3px] shrink-0 rounded-full bg-brand/60" />
+          <span>{item}</span>
+        </li>
+      ))}
+    </ul>
   );
 }
