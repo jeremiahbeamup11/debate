@@ -1,10 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { track } from "@/lib/analytics";
 import { apiPost } from "@/lib/api";
 import { POWERED_BY, PRODUCT_NAME, TRUTHCORE_URL } from "@/config/branding";
+import { POLICIES } from "@/components/LegalPage";
 
 export default function HomePage() {
   const router = useRouter();
@@ -25,7 +27,8 @@ export default function HomePage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-10 p-8 text-center">
+    <main className="flex min-h-screen flex-col p-8 text-center">
+      <div className="flex flex-1 flex-col items-center justify-center gap-10">
       {/* Landing-only neon flourish (item 4): white "Debate Night", purple TruthCore. */}
       <div className="flex flex-col items-center gap-4">
         <h1 className="neon-white neon-flicker text-6xl font-extrabold tracking-tight sm:text-8xl">
@@ -55,6 +58,15 @@ export default function HomePage() {
         Put this screen on the TV. Players join at{" "}
         <span className="font-semibold text-fg/70">/join</span> on their phones.
       </p>
+      </div>
+
+      <footer className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 pt-8 text-xs text-fg/30">
+        {POLICIES.map((p) => (
+          <Link key={p.href} href={p.href} className="hover:text-fg/70">
+            {p.label}
+          </Link>
+        ))}
+      </footer>
     </main>
   );
 }
